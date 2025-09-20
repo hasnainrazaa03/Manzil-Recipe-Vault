@@ -9,7 +9,12 @@ const userRoutes = require('./routes/users');
 const app = express();
 const PORT = 4000;
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://manzil-recipe-vault.vercel.app' // Production
+  ]
+}));
 app.use(express.json());
 
 app.use('/api/recipes', recipeRoutes);
