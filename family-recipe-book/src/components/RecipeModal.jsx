@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
   const defaultImageUrl = 'https://images.pexels.com/photos/262959/pexels-photo-262959.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1';
-  
-  const [currentRecipe, setCurrentRecipe] = useState(recipe);
   const [newComment, setNewComment] = useState('');
+
+  useEffect(() => {
+      setNewComment('');
+  }, [recipe]);
 
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
@@ -12,7 +17,7 @@ function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
 
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`http://localhost:4000/api/recipes/${currentRecipe._id}/comments`, {
+      const response = await fetch(`${API_BASE_URL}/api/recipes/${recipe._id}/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -24,15 +29,14 @@ function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
       if (!response.ok) throw new Error('Failed to post comment');
       
       const updatedRecipe = await response.json();
-      setCurrentRecipe(updatedRecipe);
       
-  
       if (onCommentAdded) {
         onCommentAdded(updatedRecipe);
       }
       
       setNewComment('');
     } catch (error) {
+      toast.error("Error posting comment.");
       console.error("Error posting comment:", error);
     }
   };
@@ -41,16 +45,16 @@ function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
     <div className="modal" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <span className="close-button" onClick={onClose}>&times;</span>
-        <img src={currentRecipe.image || defaultImageUrl} alt={currentRecipe.title} />
-        <h2>{currentRecipe.title}</h2>
+        <img src={recipe.image || defaultImageUrl} alt={recipe.title} />
+        <h2>{recipe.title}</h2>
         <h3>Ingredients</h3>
-        <p>{currentRecipe.ingredients}</p>
+        <p>{recipe.ingredients}</p>
         <h3>Instructions</h3>
-        <p style={{ whiteSpace: 'pre-wrap' }}>{currentRecipe.instructions}</p>
+        <p style={{ whiteSpace: 'pre-wrap' }}>{recipe.instructions}</p>
         
         <hr />
         <div className="comments-section">
-          <h3>Comments ({(currentRecipe.comments ?? []).length})</h3>
+          <h3>Comments ({(recipe.comments ?? []).length})</h3>
           
           {user && (
             <form onSubmit={handleCommentSubmit} className="comment-form">
@@ -66,7 +70,7 @@ function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
           )}
 
           <div className="comments-list">
-            {(currentRecipe.comments ?? []).map((comment) => (
+            {(recipe.comments ?? []).map((comment) => (
               <div key={comment._id} className="comment">
                 <div className="comment-author-info">
                   <img 

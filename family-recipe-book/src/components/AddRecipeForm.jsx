@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onCancelEdit }) {
   const [formData, setFormData] = useState({
@@ -6,15 +11,12 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
   });
   const [imageFile, setImageFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  
-  // --- NEW: State to toggle between upload methods ---
-  const [uploadMethod, setUploadMethod] = useState('file'); // 'file' or 'url'
+  const [uploadMethod, setUploadMethod] = useState('file');
 
   useEffect(() => {
     if (recipeToEdit) {
       setFormData(recipeToEdit);
       setImageFile(null);
-      // If the existing recipe has an image URL, default to URL method
       if (recipeToEdit.image) {
         setUploadMethod('url');
       }
@@ -26,10 +28,7 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prevData => ({
-      ...prevData,
-      [name]: value
-    }));
+    setFormData(prevData => ({ ...prevData, [name]: value }));
   };
   
   const handleImageChange = (e) => {
@@ -42,42 +41,37 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
 
     let imageUrl = formData.image;
 
-    // --- UPDATED: Only upload to Cloudinary if 'file' method is selected ---
     if (uploadMethod === 'file' && imageFile) {
       setIsUploading(true);
       const data = new FormData();
       data.append('file', imageFile);
-      data.append('upload_preset', 'rku9fzct'); 
+      data.append('upload_preset', CLOUDINARY_UPLOAD_PRESET); 
 
       try {
         const response = await fetch(
-          'https://api.cloudinary.com/v1_1/dhnhsdgr9/image/upload', 
-          {
-            method: 'POST',
-            body: data,
-          }
+          `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, 
+          { method: 'POST', body: data }
         );
         const fileData = await response.json();
         imageUrl = fileData.secure_url;
       } catch (error) {
         console.error("Image upload failed:", error);
-        alert("Image upload failed. Please try again.");
+        toast.error("Image upload failed. Please try again.");
         setIsUploading(false);
         return;
       }
       setIsUploading(false);
     } else if (uploadMethod === 'url') {
-        imageUrl = formData.image; // The URL is already in the form state
+        imageUrl = formData.image;
     } else {
-        imageUrl = ''; // No image provided
+        imageUrl = '';
     }
 
     const finalFormData = { ...formData, image: imageUrl };
 
-    // This part remains the same
     const token = await user.getIdToken();
     const isEditing = !!recipeToEdit;
-    const url = isEditing ? `http://localhost:4000/api/recipes/${recipeToEdit._id}` : 'http://localhost:4000/api/recipes';
+    const url = isEditing ? `${API_BASE_URL}/api/recipes/${recipeToEdit._id}` : `${API_BASE_URL}/api/recipes`;
     const method = isEditing ? 'PUT' : 'POST';
 
     try {
@@ -95,10 +89,9 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
         onRecipeUpdated(result);
       } else {
         onRecipeAdded(result);
-        setFormData({ title: '', image: '', overview: '', ingredients: '', instructions: '' });
-        setImageFile(null);
       }
     } catch (error) {
+      toast.error("Failed to save recipe.");
       console.error("Error submitting recipe:", error);
     }
   };
@@ -109,14 +102,12 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
       <form onSubmit={handleSubmit}>
         <input name="title" value={formData.title} onChange={handleChange} placeholder="Recipe Title" required />
         
-        {/* --- NEW: Toggle buttons for image input method --- */}
         <div className="image-upload-toggle">
             <label>Image:</label>
             <button type="button" onClick={() => setUploadMethod('file')} className={uploadMethod === 'file' ? 'active' : ''}>Upload File</button>
             <button type="button" onClick={() => setUploadMethod('url')} className={uploadMethod === 'url' ? 'active' : ''}>Use URL</button>
         </div>
         
-        {/* --- NEW: Conditionally render the correct input field --- */}
         {uploadMethod === 'file' ? (
             <input type="file" onChange={handleImageChange} accept="image/png, image/jpeg" />
         ) : (

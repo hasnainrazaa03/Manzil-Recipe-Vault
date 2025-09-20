@@ -6,6 +6,7 @@ import { auth } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import ConfirmToast from './components/ConfirmToast';
 
 // Import Components and Pages
 import HomePage from './pages/HomePage';
@@ -15,6 +16,8 @@ import EditProfilePage from './pages/EditProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AddRecipeForm from './components/AddRecipeForm';
 import SavedRecipesPage from './pages/SavedRecipesPage';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -43,7 +46,7 @@ function App() {
     const fetchUserSavedRecipes = async () => {
       if (user) {
         try {
-          const response = await fetch(`http://localhost:4000/api/users/profile/${user.uid}`);
+          const response = await fetch(`${API_BASE_URL}/api/users/profile/${user.uid}`);
           const data = await response.json();
           if (data && data.user && data.user.savedRecipes) {
             setSavedRecipeIds(new Set(data.user.savedRecipes));
@@ -58,7 +61,7 @@ function App() {
 
   useEffect(() => {
     const fetchRecipes = async () => {
-        let baseUrl = 'http://localhost:4000/api/recipes';
+        let baseUrl = `${API_BASE_URL}/api/recipes`;
         const headers = {};
         let url;
         if (view === 'public') { url = `${baseUrl}/public`; } 
@@ -92,14 +95,38 @@ function App() {
   const handleToggleSave = async (recipeId) => {
     if (!user) return;
     const token = await user.getIdToken();
-    await fetch(`http://localhost:4000/api/users/save/${recipeId}`, {
-      method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
-    });
+    await fetch(`${API_BASE_URL}/api/users/save/${recipeId}`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }});
     setSavedRecipeIds(prev => {
       const newSet = new Set(prev);
       if (newSet.has(recipeId)) { newSet.delete(recipeId); toast.info('Recipe removed from saved!'); } 
       else { newSet.add(recipeId); toast.success('Recipe saved!'); }
       return newSet;
+    });
+  };
+    const handleDelete = (id, currentRecipes) => {
+    const proceedWithDelete = async () => {
+        const token = await user.getIdToken();
+        await fetch(`${API_BASE_URL}/api/recipes/${id}`, { 
+            method: 'DELETE', 
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        toast.success('Recipe deleted!');
+
+        if (currentRecipes.length === 1 && currentPage > 1) {
+            setCurrentPage(p => p - 1);
+        } else {
+            setRefetchTrigger(c => c + 1);
+        }
+    };
+
+    toast.warn(<ConfirmToast 
+        message="Are you sure you want to delete this recipe?" 
+        onConfirm={proceedWithDelete} 
+    />, {
+        autoClose: false,
+        closeOnClick: false,
+        draggable: false,
     });
   };
 
@@ -120,7 +147,7 @@ function App() {
         theme="light"
       />
       <header>
-        <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }} onClick={() => setView('public')}><h1>Saltanat Manzil Recipe Book</h1></Link>
+        <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }} onClick={() => setView('public')}><h1>Our Family's Favorite Recipes</h1></Link>
         {user ? (
           <div className="user-info">
             <Link to="/saved-recipes" className="nav-link">Saved Recipes</Link>
@@ -132,11 +159,11 @@ function App() {
       </header>
 
       <Routes>
-        <Route path="/" element={ <HomePage user={user} recipes={recipes} setRecipes={setRecipes} onEdit={handleEditClick} view={view} setView={setView} searchTerm={searchTerm} setSearchTerm={setSearchTerm} currentPage={currentPage} setCurrentPage={setCurrentPage} totalPages={totalPages} savedRecipeIds={savedRecipeIds} onToggleSave={handleToggleSave} setRefetchTrigger={setRefetchTrigger} />} />
-        <Route path="/profile/:userId" element={ <ProfilePage user={user} onEdit={handleEditClick} refetchTrigger={refetchTrigger} setRefetchTrigger={setRefetchTrigger} savedRecipeIds={savedRecipeIds} onToggleSave={handleToggleSave} />} />
+        <Route path="/" element={ <HomePage user={user} recipes={recipes} setRecipes={setRecipes} onEdit={handleEditClick} view={view} setView={setView} searchTerm={searchTerm} setSearchTerm={setSearchTerm} currentPage={currentPage} setCurrentPage={setCurrentPage} totalPages={totalPages} savedRecipeIds={savedRecipeIds} onToggleSave={handleToggleSave} handleDelete={handleDelete} />} />
+        <Route path="/profile/:userId" element={ <ProfilePage user={user} onEdit={handleEditClick} refetchTrigger={refetchTrigger} setRefetchTrigger={setRefetchTrigger} savedRecipeIds={savedRecipeIds} onToggleSave={handleToggleSave} handleDelete={handleDelete} />} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/saved-recipes" element={<ProtectedRoute user={user}><SavedRecipesPage user={user} savedRecipeIds={savedRecipeIds} onToggleSave={handleToggleSave} /></ProtectedRoute>} />
-        <Route path="/profile/edit" element={ <ProtectedRoute user={user}><EditProfilePage /></ProtectedRoute> } />
+        <Route path="/profile/edit" element={ <ProtectedRoute user={user}><EditProfilePage user={user} /></ProtectedRoute> } />
       </Routes>
       
       {user && (

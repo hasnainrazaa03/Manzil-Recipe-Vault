@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from '../firebase';
 import RecipeCard from '../components/RecipeCard';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 function SavedRecipesPage({ user, savedRecipeIds, onToggleSave }) {
   const [recipes, setRecipes] = useState([]);
@@ -14,7 +15,7 @@ function SavedRecipesPage({ user, savedRecipeIds, onToggleSave }) {
       setIsLoading(true);
       try {
         const token = await user.getIdToken();
-        const response = await fetch(`http://localhost:4000/api/users/saved-recipes?page=${currentPage}`, {
+        const response = await fetch(`${API_BASE_URL}/api/users/saved-recipes?page=${currentPage}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();

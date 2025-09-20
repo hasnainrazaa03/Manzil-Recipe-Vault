@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // 1. Import useNavigate
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { auth } from '../firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
@@ -7,7 +8,7 @@ function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const navigate = useNavigate(); // 2. Initialize the navigate function
+  const navigate = useNavigate();
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -17,9 +18,9 @@ function Auth() {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
-      navigate('/'); // 3. Redirect to the home page on success
+      navigate('/');
     } catch (error) {
-      alert(error.message);
+      toast.error(error.message);
       console.error('Authentication error:', error);
     }
   };

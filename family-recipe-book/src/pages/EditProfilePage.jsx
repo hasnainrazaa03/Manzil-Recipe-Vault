@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../firebase';
-
-function EditProfilePage() {
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+function EditProfilePage({ user }) {
   const [profileData, setProfileData] = useState({ displayName: '', bio: '' });
   const [profilePictureFile, setProfilePictureFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const user = auth.currentUser;
   
   useEffect(() => {
     if (user) {
-      fetch(`http://localhost:4000/api/users/profile/${user.uid}`)
+      fetch(`${API_BASE_URL}/api/users/profile/${user.uid}`)
         .then(res => res.json())
         .then(data => {
-          setProfileData({
-            displayName: data.user.displayName || '',
-            bio: data.user.bio || '',
-            profilePictureUrl: data.user.profilePictureUrl || ''
-          });
+          if (data && data.user) {
+            setProfileData({
+              displayName: data.user.displayName || '',
+              bio: data.user.bio || '',
+              profilePictureUrl: data.user.profilePictureUrl || ''
+            });
+          }
         });
     }
   }, [user]);
@@ -38,23 +40,21 @@ function EditProfilePage() {
 
     let profilePictureUrl = profileData.profilePictureUrl;
 
-
     if (profilePictureFile) {
       const data = new FormData();
       data.append('file', profilePictureFile);
-      data.append('upload_preset', 'rku9fzct');  
+      data.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);  
 
       const response = await fetch(
-        `https://api.cloudinary.com/v1_1/dhnhsdgr9/image/upload`, 
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, 
         { method: 'POST', body: data }
       );
       const fileData = await response.json();
       profilePictureUrl = fileData.secure_url;
     }
 
-  
     const token = await user.getIdToken();
-    await fetch('http://localhost:4000/api/users/me', {
+    await fetch(`${API_BASE_URL}/api/users/me`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -68,7 +68,6 @@ function EditProfilePage() {
     });
 
     setIsLoading(false);
-  
     navigate(`/profile/${user.uid}`);
   };
 
