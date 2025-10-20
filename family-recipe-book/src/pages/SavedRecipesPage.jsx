@@ -30,7 +30,14 @@ function SavedRecipesPage({ user, savedRecipeIds, onToggleSave }) {
     fetchSavedRecipes();
   }, [user, currentPage]);
 
-  if (isLoading) return <div className="loading-container">Loading Saved Recipes...</div>;
+  if (isLoading) {
+   return (
+     <div className="loading-container">
+       <div className="spinner"></div>
+       Loading Saved Recipes...
+     </div>
+   );
+ }
 
   return (
     <div className="saved-recipes-page">
@@ -48,7 +55,10 @@ function SavedRecipesPage({ user, savedRecipeIds, onToggleSave }) {
           ))}
         </main>
       ) : (
+       <div className="empty-state">
+        <i className="fa fa-star-o" aria-hidden="true"></i>
         <p>You haven't saved any recipes yet.</p>
+        </div>
       )}
 
       {totalPages > 1 && (

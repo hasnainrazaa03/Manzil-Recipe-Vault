@@ -152,7 +152,14 @@ function App() {
     });
   };
 
-  if (isLoading) return <div className="loading-container">Loading...</div>;
+  if (isLoading) {
+   return (
+     <div className="loading-container">
+       <div className="spinner"></div>
+       Loading Application...
+     </div>
+   );
+ }
 
   return (
     <div className="App">

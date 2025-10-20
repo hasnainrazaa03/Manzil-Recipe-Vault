@@ -41,7 +41,14 @@ function ProfilePage({ user, onEdit, refetchTrigger, setRefetchTrigger, savedRec
     setSelectedRecipe(updatedRecipe);
   };
   
-  if (isLoading) return <div className="loading-container">Loading Profile...</div>;
+  if (isLoading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        Loading Profile...
+      </div>
+    );
+  }
   if (!profileUser) return <div>User not found.</div>;
 
   return (
@@ -60,18 +67,25 @@ function ProfilePage({ user, onEdit, refetchTrigger, setRefetchTrigger, savedRec
       </div>
 
       <main id="recipe-grid">
-        {recipes.map(recipe => (
-          <RecipeCard 
-            key={recipe._id} 
-            recipe={recipe} 
-            user={user} 
-            onClick={() => setSelectedRecipe(recipe)}
-            onDelete={isOwner ? () => handleDelete(recipe._id, recipes) : null}
-            onEdit={isOwner ? onEdit : null}
-            isSaved={savedRecipeIds.has(recipe._id)}
-            onToggleSave={onToggleSave}
-          />
-        ))}
+        { recipes.length > 0 ? (
+          recipes.map(recipe => (
+            <RecipeCard
+              key={recipe._id}
+              recipe={recipe}
+              user={user}
+              onClick={() => setSelectedRecipe(recipe)}
+              onDelete={isOwner ? () => handleDelete(recipe._id, recipes) : null}
+              onEdit={isOwner ? onEdit : null}
+              isSaved={savedRecipeIds.has(recipe._id)}
+              onToggleSave={onToggleSave}
+            />
+          ))
+        ) : (
+          <div className="empty-state">
+              <i className="fa fa-book" aria-hidden="true"></i>
+              <p>This user hasn't added any recipes yet.</p>
+          </div>
+        )}
       </main>
       
       {totalPages > 1 && (

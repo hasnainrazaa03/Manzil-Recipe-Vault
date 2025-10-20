@@ -25,13 +25,16 @@ function HomePage({
                 {user && <button onClick={() => setView('private')} className={view === 'private' ? 'active' : ''}>My Recipes</button>}
             </nav>
             <div className="search-container">
-                <input
-                    type="text"
-                    placeholder="Search for recipes by title..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="search-input"
-                />
+                <div className="search-input-wrapper">
+                    <input
+                        type="text"
+                        placeholder="Search for recipes by title..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="search-input"
+                    />
+                    <span className="search-icon"><i className="fa fa-search search-icon" aria-hidden="true"></i></span>
+                </div>
             </div>
 
             {availableTags && availableTags.length > 0 && (
@@ -57,7 +60,8 @@ function HomePage({
             )}
 
             <main id="recipe-grid">
-                {(recipes ?? []).map(recipe => (
+                {recipes.length > 0 ? (
+                (recipes ?? []).map(recipe => (
                     <RecipeCard
                         key={recipe._id}
                         recipe={recipe}
@@ -68,7 +72,13 @@ function HomePage({
                         isSaved={savedRecipeIds.has(recipe._id)}
                         onToggleSave={onToggleSave}
                     />
-                ))}
+                ))
+            ) : (
+                <div className="empty-state">
+                    <i className="fa fa-folder-open-o" aria-hidden="true"></i>
+                    <p>No recipes found matching your criteria.</p>
+                </div>
+                )}
             </main>
 
             {totalPages > 1 && (
