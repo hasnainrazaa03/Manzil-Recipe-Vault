@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -43,20 +44,44 @@ function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
 
   return (
     <div className="modal" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content recipe-modal-content" onClick={(e) => e.stopPropagation()}>
         <span className="close-button" onClick={onClose}>&times;</span>
         <img src={recipe.image || defaultImageUrl} alt={recipe.title} />
         <h2>{recipe.title}</h2>
+        
+        {recipe.author && recipe.authorEmail && (
+            <p className="author-email">
+              By: <Link to={`/profile/${recipe.author}`} onClick={onClose}>{recipe.authorEmail}</Link>
+            </p>
+        )}
+        
+        {recipe.tags && recipe.tags.length > 0 && (
+          <div className="tags-container modal-tags-container">
+            {recipe.tags.map(tag => (
+              <span key={tag} className="tag">{tag}</span>
+            ))}
+          </div>
+        )}
+
         <h3>Ingredients</h3>
-        <p>{recipe.ingredients}</p>
+        <ul className="ingredient-list">
+            {recipe.ingredients.split(',').map((ingredient, index) => (
+              ingredient.trim() ? <li key={index}>{ingredient.trim()}</li> : null
+            ))}
+        </ul>
+
         <h3>Instructions</h3>
-        <p style={{ whiteSpace: 'pre-wrap' }}>{recipe.instructions}</p>
+        <ol className="instruction-list">
+            {recipe.instructions.split('\n').map((step, index) => (
+              step.trim() ? <li key={index}>{step.trim()}</li> : null
+            ))}
+        </ol>
         
         <hr />
         <div className="comments-section">
           <h3>Comments ({(recipe.comments ?? []).length})</h3>
           
-          {user && (
+          {user ? (
             <form onSubmit={handleCommentSubmit} className="comment-form">
               <textarea
                 value={newComment}
@@ -67,27 +92,33 @@ function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
               />
               <button type="submit">Post Comment</button>
             </form>
+          ) : (
+             <p className="login-to-comment">Please <Link to="/login" onClick={onClose}>log in</Link> to add comments.</p>
           )}
 
           <div className="comments-list">
-            {(recipe.comments ?? []).map((comment) => (
-              <div key={comment._id} className="comment">
-                <div className="comment-author-info">
-                  <img 
-                    src={comment.authorProfilePictureUrl || 'https://i.imgur.com/346c9kE.png'} 
-                    alt="author avatar" 
-                    className="comment-avatar"
-                  />
-                  <span className="comment-author-name">
-                    {comment.authorDisplayName || comment.authorEmail}
-                  </span>
+            {(recipe.comments ?? []).length > 0 ? (
+                (recipe.comments ?? []).map((comment) => (
+                <div key={comment._id} className="comment">
+                    <div className="comment-author-info">
+                    <img 
+                        src={comment.authorProfilePictureUrl || 'https://i.imgur.com/346c9kE.png'} 
+                        alt="author avatar" 
+                        className="comment-avatar"
+                    />
+                    <span className="comment-author-name">
+                        {comment.authorDisplayName || comment.authorEmail}
+                    </span>
+                    </div>
+                    <p className="comment-text">{comment.text}</p>
+                    <p className="comment-date">
+                    {new Date(comment.createdAt).toLocaleDateString()}
+                    </p>
                 </div>
-                <p className="comment-text">{comment.text}</p>
-                <p className="comment-date">
-                  {new Date(comment.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-            )).reverse()}
+                )).reverse()
+            ) : (
+                !user && <p>No comments yet.</p>
+            )}
           </div>
         </div>
       </div>

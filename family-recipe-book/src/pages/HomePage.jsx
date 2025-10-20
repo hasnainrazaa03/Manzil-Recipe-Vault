@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import RecipeCard from '../components/RecipeCard';
 import RecipeModal from '../components/RecipeModal';
 
-function HomePage({ 
-  user, recipes, setRecipes, onEdit, view, setView, searchTerm, setSearchTerm, 
-  currentPage, setCurrentPage, totalPages, savedRecipeIds, onToggleSave, handleDelete 
+function HomePage({
+  user, recipes, setRecipes, onEdit, view, setView, searchTerm, setSearchTerm,
+  currentPage, setCurrentPage, totalPages, savedRecipeIds, onToggleSave, handleDelete,
+  selectedTag, setSelectedTag, availableTags
 }) {
     const [selectedRecipe, setSelectedRecipe] = useState(null);
+    const navigate = useNavigate(); 
 
     const handleRecipeUpdated = (updatedRecipe) => {
         setRecipes(prev => prev.map(r => r._id === updatedRecipe._id ? updatedRecipe : r));
         setSelectedRecipe(prev => prev?._id === updatedRecipe._id ? updatedRecipe : prev);
     };
+
+    console.log("HomePage received availableTags:", availableTags);
 
     return (
         <>
@@ -28,8 +33,31 @@ function HomePage({
                     className="search-input"
                 />
             </div>
+
+            {availableTags && availableTags.length > 0 && (
+                <div className="tag-filter-container">
+                    <>
+                        <span>Filter by Tag:</span>
+                        {availableTags.map(tag => (
+                            <button
+                                key={tag}
+                                onClick={() => setSelectedTag(tag)}
+                                className={`tag-filter-btn ${selectedTag === tag ? 'active' : ''}`}
+                            >
+                                {tag}
+                            </button>
+                        ))}
+                        {selectedTag && (
+                            <button onClick={() => setSelectedTag(null)} className="tag-filter-btn clear">
+                                Clear Filter
+                            </button>
+                        )}
+                    </>
+                </div>
+            )}
+
             <main id="recipe-grid">
-                {recipes.map(recipe => (
+                {(recipes ?? []).map(recipe => (
                     <RecipeCard
                         key={recipe._id}
                         recipe={recipe}
@@ -42,6 +70,7 @@ function HomePage({
                     />
                 ))}
             </main>
+
             {totalPages > 1 && (
                 <div className="pagination-controls">
                     <button onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>Previous</button>
@@ -49,6 +78,7 @@ function HomePage({
                     <button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages}>Next</button>
                 </div>
             )}
+
             {selectedRecipe && (
                 <RecipeModal
                     recipe={selectedRecipe}

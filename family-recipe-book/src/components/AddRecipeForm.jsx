@@ -7,7 +7,7 @@ const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onCancelEdit }) {
   const [formData, setFormData] = useState({
-    title: '', image: '', overview: '', ingredients: '', instructions: ''
+    title: '', image: '', overview: '', ingredients: '', instructions: '', tags: ''
   });
   const [imageFile, setImageFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -15,13 +15,14 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
 
   useEffect(() => {
     if (recipeToEdit) {
-      setFormData(recipeToEdit);
+      const tagsString = Array.isArray(recipeToEdit.tags) ? recipeToEdit.tags.join(', ') : '';
+      setFormData({...recipeToEdit, tags: tagsString });
       setImageFile(null);
       if (recipeToEdit.image) {
         setUploadMethod('url');
       }
     } else {
-      setFormData({ title: '', image: '', overview: '', ingredients: '', instructions: '' });
+      setFormData({ title: '', image: '', overview: '', ingredients: '', instructions: '', tags: '' });
       setUploadMethod('file');
     }
   }, [recipeToEdit]);
@@ -118,6 +119,9 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
         <textarea name="ingredients" value={formData.ingredients} onChange={handleChange} placeholder="Ingredients (comma separated)" required />
         <textarea name="instructions" value={formData.instructions} onChange={handleChange} placeholder="Instructions" required />
         
+        <label>Tags (comma-separated):</label>
+        <input name="tags" value={formData.tags} onChange={handleChange} placeholder="e.g., dessert, quick, vegan" />
+
         <button type="submit" disabled={isUploading}>
             {isUploading ? 'Uploading Image...' : (recipeToEdit ? 'Update Recipe' : 'Add Recipe')}
         </button>

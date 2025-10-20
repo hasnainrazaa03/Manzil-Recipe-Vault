@@ -26,6 +26,13 @@ function RecipeCard({ recipe, onClick, user, onDelete, onEdit, isSaved, onToggle
             </p>
         )}
         <p onClick={onClick}>{recipe.overview}</p>
+        {recipe.tags && recipe.tags.length > 0 && (
+            <div className="tags-container">
+                {recipe.tags.map(tag => (
+                    <span key={tag} className="tag">{tag}</span>
+                ))}
+            </div>
+        )}
         {isAuthor && (
           <div className="card-actions">
             <button onClick={() => onEdit(recipe)}>Edit</button>

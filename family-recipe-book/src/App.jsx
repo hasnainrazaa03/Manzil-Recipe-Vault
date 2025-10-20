@@ -33,6 +33,8 @@ function App() {
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
   const [savedRecipeIds, setSavedRecipeIds] = useState(new Set());
+  const [selectedTag, setSelectedTag] = useState(null);
+  const [availableTags, setAvailableTags] = useState([]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -72,6 +74,7 @@ function App() {
         } else { setRecipes([]); setTotalPages(0); return; }
         const params = new URLSearchParams();
         if (debouncedSearchTerm) { params.append('search', debouncedSearchTerm); }
+        if (selectedTag) { params.append('tag', selectedTag); }
         params.append('page', currentPage);
         url += `?${params.toString()}`;
         try {
@@ -83,9 +86,25 @@ function App() {
     };
     if (view === 'private' && !user) { navigate('/login'); } 
     else { fetchRecipes(); }
-  }, [user, view, debouncedSearchTerm, currentPage, navigate, refetchTrigger]);
+  }, [user, view, debouncedSearchTerm, currentPage, navigate, refetchTrigger, selectedTag]);
 
-  useEffect(() => { setCurrentPage(1); }, [view, debouncedSearchTerm]);
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/recipes/tags`);
+        const data = await response.json();
+        console.log("Fetched Tags:", data);
+        if (Array.isArray(data)) {
+          setAvailableTags(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch tags:", error);
+      }
+    };
+    fetchTags();
+  }, [refetchTrigger]);
+
+  useEffect(() => { setCurrentPage(1); setSelectedTag(null);}, [view, debouncedSearchTerm]);
 
   const handleRecipeAdded = () => { setIsFormModalOpen(false); setRefetchTrigger(c => c + 1); toast.success('Recipe added successfully!'); };
   const handleRecipeUpdated = (updatedRecipe) => { setRecipes(prev => prev.map(r => r._id === updatedRecipe._id ? updatedRecipe : r)); setEditingRecipe(null); setRefetchTrigger(c => c + 1); toast.success('Recipe updated successfully!'); };
@@ -124,9 +143,12 @@ function App() {
         message="Are you sure you want to delete this recipe?" 
         onConfirm={proceedWithDelete} 
     />, {
+        position: "top-center",
         autoClose: false,
         closeOnClick: false,
         draggable: false,
+        closeButton: false,
+        theme: "colored",
     });
   };
 
@@ -159,8 +181,8 @@ function App() {
       </header>
 
       <Routes>
-        <Route path="/" element={ <HomePage user={user} recipes={recipes} setRecipes={setRecipes} onEdit={handleEditClick} view={view} setView={setView} searchTerm={searchTerm} setSearchTerm={setSearchTerm} currentPage={currentPage} setCurrentPage={setCurrentPage} totalPages={totalPages} savedRecipeIds={savedRecipeIds} onToggleSave={handleToggleSave} handleDelete={handleDelete} />} />
-        <Route path="/profile/:userId" element={ <ProfilePage user={user} onEdit={handleEditClick} refetchTrigger={refetchTrigger} setRefetchTrigger={setRefetchTrigger} savedRecipeIds={savedRecipeIds} onToggleSave={handleToggleSave} handleDelete={handleDelete} />} />
+        <Route path="/" element={ <HomePage user={user} recipes={recipes} setRecipes={setRecipes} onEdit={handleEditClick} view={view} setView={setView} searchTerm={searchTerm} setSearchTerm={setSearchTerm} currentPage={currentPage} setCurrentPage={setCurrentPage} totalPages={totalPages} savedRecipeIds={savedRecipeIds} onToggleSave={handleToggleSave} handleDelete={handleDelete} selectedTag={selectedTag} setSelectedTag={setSelectedTag} availableTags={availableTags}/>} />
+        <Route path="/profile/:userId" element={ <ProfilePage user={user} onEdit={handleEditClick} refetchTrigger={refetchTrigger} setRefetchTrigger={setRefetchTrigger} savedRecipeIds={savedRecipeIds} onToggleSave={handleToggleSave} handleDelete={handleDelete} selectedTag={selectedTag} setSelectedTag={setSelectedTag}/>} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/saved-recipes" element={<ProtectedRoute user={user}><SavedRecipesPage user={user} savedRecipeIds={savedRecipeIds} onToggleSave={handleToggleSave} /></ProtectedRoute>} />
         <Route path="/profile/edit" element={ <ProtectedRoute user={user}><EditProfilePage user={user} /></ProtectedRoute> } />

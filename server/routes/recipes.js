@@ -7,7 +7,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 // === PUBLIC ROUTES ===
 router.get('/public', async (req, res) => {
   try {
-    const { search, page = 1, limit = 6 } = req.query;
+    const { search, tag, page = 1, limit = 6 } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
@@ -16,7 +16,7 @@ router.get('/public', async (req, res) => {
     if (search) {
       filter.title = { $regex: search, $options: 'i' };
     }
-
+    if (tag) { filter.tags = tag; }
     const totalRecipes = await Recipe.countDocuments(filter);
     const recipes = await Recipe.find(filter)
       .sort({ createdAt: -1 })
@@ -42,21 +42,32 @@ router.get('/user/:userId', async (req, res) => {
     }
 });
 
+router.get('/tags', async (req, res) => {
+  try {
+    const tags = await Recipe.distinct('tags');
+    res.json(tags.sort());
+  } catch (error) {
+    console.error("Error fetching tags:", error);
+    res.status(500).json({ message: 'Failed to fetch tags' });
+  }
+});
+
 // === PROTECTED ROUTES ===
 router.use(authMiddleware);
 
 // GET /api/recipes - Get recipes for the logged-in user
 router.get('/', async (req, res) => {
   try {
-    const { search, page = 1, limit = 6 } = req.query;
+    const { search, tag, page = 1, limit = 6 } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
     
-    let filter = { author: req.user.uid };
+    let filter = { author: req.user.uid};
     if (search) {
       filter.title = { $regex: search, $options: 'i' };
     }
+    if (tag) { filter.tags = tag; }
     const totalRecipes = await Recipe.countDocuments(filter);
     const recipes = await Recipe.find(filter)
       .sort({ createdAt: -1 })
@@ -74,6 +85,7 @@ router.get('/', async (req, res) => {
 
 // POST /api/recipes - Create a new recipe
 router.post('/', async (req, res) => {
+  const tagsArray = req.body.tags ? req.body.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
   const recipe = new Recipe({
     title: req.body.title, 
     image: req.body.image, 
@@ -81,7 +93,8 @@ router.post('/', async (req, res) => {
     ingredients: req.body.ingredients, 
     instructions: req.body.instructions,
     author: req.user.uid,
-    authorEmail: req.user.email
+    authorEmail: req.user.email,
+    tags: tagsArray
   });
   try {
     const newRecipe = await recipe.save();
@@ -116,9 +129,17 @@ router.put('/:id', async (req, res) => {
     if (recipe.author.toString() !== req.user.uid) {
       return res.status(403).json({ message: 'User not authorized to edit this recipe' });
     }
+    
+    const updateData = { ...req.body };
+    if (req.body.tags) {
+      updateData.tags = req.body.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+    } else {
+      updateData.tags = [];
+    }
+    
     const updatedRecipe = await Recipe.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true }
     );
     res.json(updatedRecipe);

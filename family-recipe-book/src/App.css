@@ -526,9 +526,27 @@ header h1 {
   }
 }
 
+.forgot-password-btn {
+  background: none;
+  border: none;
+  color: #666; 
+  cursor: pointer;
+  padding: 5px 0; 
+  margin-top: 5px; 
+  text-decoration: underline;
+  font-size: 0.9rem;
+}
+.forgot-password-btn:hover {
+    color: #333; 
+}
+
+.confirm-toast {
+  padding: 10px;
+}
 .confirm-toast p {
-  margin: 0 0 10px 0;
+  margin: 0 0 15px 0;
   font-weight: bold;
+  font-size: 1rem;
 }
 .confirm-toast-buttons {
   display: flex;
@@ -536,10 +554,11 @@ header h1 {
   justify-content: flex-end;
 }
 .confirm-toast-buttons button {
-  padding: 5px 10px;
+  padding: 6px 12px;
   border: 1px solid #ccc;
   border-radius: 4px;
   cursor: pointer;
+  font-weight: bold;
 }
 .confirm-toast-buttons .confirm-yes {
   background-color: #d9534f; /* Red */
@@ -548,4 +567,70 @@ header h1 {
 }
 .confirm-toast-buttons .confirm-no {
   background-color: #f8f8f8;
-} 
+  color: #333;
+}
+
+.tags-container {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.tag {
+  background-color: #eee;
+  color: #555;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+.recipe-modal-content .modal-tags-container {
+  margin-bottom: 20px;
+  justify-content: flex-start;
+}
+
+.tag-filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin: 0 20px 20px 20px;
+  padding: 10px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.tag-filter-container span {
+  font-weight: bold;
+  margin-right: 10px;
+  color: #555;
+}
+.tag-filter-btn {
+  padding: 5px 12px;
+  border: 1px solid #ddd;
+  background-color: #f8f8f8;
+  color: #444;
+  cursor: pointer;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+.tag-filter-btn:hover {
+  background-color: #eee;
+  border-color: #ccc;
+}
+.tag-filter-btn.active {
+  background-color: #4CAF50;
+  color: white;
+  border-color: #4CAF50;
+  font-weight: bold;
+}
+.tag-filter-btn.clear {
+    background-color: #f8d7da; /* Light red */
+    color: #721c24; /* Dark red */
+    border-color: #f5c6cb;
+}
+.tag-filter-btn.clear:hover {
+    background-color: #f5c6cb;
+}
