@@ -1,102 +1,106 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 
-// Basic Toolbar Component (Optional but recommended)
-const MenuBar = ({ editor }) => {
-  if (!editor) {
-    return null;
-  }
-
-  return (
-    <div className="editor-toolbar">
-      <button
-        type="button" // Important for preventing form submission
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        disabled={!editor.can().chain().focus().toggleBold().run()}
-        className={editor.isActive('bold') ? 'is-active' : ''}
-      >
-        Bold
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        disabled={!editor.can().chain().focus().toggleItalic().run()}
-        className={editor.isActive('italic') ? 'is-active' : ''}
-      >
-        Italic
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-        disabled={!editor.can().chain().focus().toggleStrike().run()}
-        className={editor.isActive('strike') ? 'is-active' : ''}
-      >
-        Strike
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().setParagraph().run()}
-        className={editor.isActive('paragraph') ? 'is-active' : ''}
-      >
-        Paragraph
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        className={editor.isActive('bulletList') ? 'is-active' : ''}
-      >
-        Bullet list
-      </button>
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        className={editor.isActive('orderedList') ? 'is-active' : ''}
-      >
-        Ordered list
-      </button>
-       {/* Add more buttons for other StarterKit features if desired */}
-    </div>
-  );
-};
-
-// The main Editor Component
 function RichTextEditor({ content, onChange, placeholder }) {
-  const editor = useEditor({
-    extensions: [
-      StarterKit, // Use the basic extension bundle
-    ],
-    content: content || '', // Initial content from props
-    // Trigger the onChange prop whenever the editor content changes
-    onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
-    },
-    // Define editor props, like placeholder text
-    editorProps: {
-      attributes: {
-        class: 'tiptap-editor', // Class for styling the editor area
+    
+    const MenuBar = ({ editor }) => {
+      if (!editor) {
+        return null;
+      }
+
+      return (
+        <div className="editor-toolbar">
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            className={editor.isActive('bold') ? 'is-active' : ''}
+            title="Bold"
+          >
+            <i className="fa fa-bold"></i>
+          </button>
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            className={editor.isActive('italic') ? 'is-active' : ''}
+            title="Italic"
+          >
+            <i className="fa fa-italic"></i>
+          </button>
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            className={editor.isActive('strike') ? 'is-active' : ''}
+            title="Strike"
+          >
+            <i className="fa fa-strikethrough"></i>
+          </button>
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().setParagraph().run()}
+            title="Paragraph"
+          >
+            <i className="fa fa-paragraph"></i>
+          </button>
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            className={editor.isActive('bulletList') ? 'is-active' : ''}
+            title="Bullet List"
+          >
+            <i className="fa fa-list-ul"></i>
+          </button>
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            className={editor.isActive('orderedList') ? 'is-active' : ''}
+            title="Ordered List"
+          >
+            <i className="fa fa-list-ol"></i>
+          </button>
+        </div>
+      );
+    };
+    
+    const [_, setForceUpdate] = useState(0);
+
+    const editor = useEditor({
+      extensions: [
+        StarterKit,
+      ],
+      content: content || '', 
+      onUpdate: ({ editor }) => {
+        onChange(editor.getHTML());
       },
-    },
-  });
+      
+      onTransaction: () => {
+        setForceUpdate(val => val + 1);
+      },
 
-  // Set placeholder using CSS pseudo-element
-  const placeholderStyle = `
-    .tiptap-editor p.is-editor-empty:first-child::before {
-      content: attr(data-placeholder);
-      float: left;
-      color: #adb5bd;
-      pointer-events: none;
-      height: 0;
-    }
-  `;
+      editorProps: {
+        attributes: {
+          class: 'tiptap-editor', 
+        },
+      },
+    });
 
-  return (
-    <div className="tiptap-wrapper">
-      <style>{placeholderStyle}</style>
-      <MenuBar editor={editor} />
-      <EditorContent editor={editor} data-placeholder={placeholder || 'Write something...'}/>
-    </div>
-  );
+    const placeholderStyle = `
+      .tiptap-editor p.is-editor-empty:first-child::before {
+        content: attr(data-placeholder);
+        float: left;
+        color: #adb5bd;
+        pointer-events: none;
+        height: 0;
+      }
+    `;
+
+    return (
+      <div className="tiptap-wrapper">
+        <style>{placeholderStyle}</style>
+        <MenuBar editor={editor} />
+        <EditorContent editor={editor} data-placeholder={placeholder || 'Write something...'}/>
+      </div>
+    );
 }
 
 export default RichTextEditor;

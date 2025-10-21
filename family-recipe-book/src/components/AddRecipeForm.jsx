@@ -127,7 +127,12 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
 
         <textarea name="overview" value={formData.overview} onChange={handleChange} placeholder="Brief Overview" required />
         <textarea name="ingredients" value={formData.ingredients} onChange={handleChange} placeholder="Ingredients (comma separated)" required />
-        <textarea name="instructions" value={formData.instructions} onChange={handleChange} placeholder="Instructions" required />
+        <label>Instructions:</label>
+        <RichTextEditor
+            content={instructionsContent}
+            onChange={handleInstructionsChange}
+            placeholder="Write the recipe steps..."
+        />
         
         <label>Tags (comma-separated):</label>
         <input name="tags" value={formData.tags} onChange={handleChange} placeholder="e.g., dessert, quick, vegan" />

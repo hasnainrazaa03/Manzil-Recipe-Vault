@@ -1191,23 +1191,29 @@ header h1 {
 }
 
 .editor-toolbar {
-  background-color: var(--accent-color); 
-  padding: var(--spacing-2); 
+  background-color: var(--accent-color);
+  padding: var(--spacing-2);
   border-bottom: 1px solid var(--border-color);
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-2);
+  flex-wrap: wrap; 
+  gap: 4px; 
 }
 
 .editor-toolbar button {
   background: none;
   border: none;
-  padding: var(--spacing-1) var(--spacing-2); 
-  border-radius: var(--radius-md); 
+  padding: var(--spacing-2);
+  border-radius: var(--radius-md);
   cursor: pointer;
   color: var(--secondary-text);
   font-weight: 500;
+  font-size: 0.9rem; 
   transition: background-color 0.2s ease, color 0.2s ease;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .editor-toolbar button:hover {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 import { Rating } from 'react-simple-star-rating';
+import DOMPurify from 'dompurify';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -107,6 +108,8 @@ function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
     }
   };
 
+  const cleanInstructionsHTML = DOMPurify.sanitize(recipe.instructions);
+
   return (
     <div className="modal" onClick={onClose}>
       <div className="modal-content recipe-modal-content" onClick={(e) => e.stopPropagation()}>
@@ -163,12 +166,11 @@ function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
         </ul>
 
         <h3>Instructions</h3>
-        <ol className="instruction-list">
-            {recipe.instructions.split('\n').map((step, index) => (
-              step.trim() ? <li key={index}>{step.trim()}</li> : null
-            ))}
-        </ol>
-        
+        <div
+          className="instruction-content"
+          dangerouslySetInnerHTML={{ __html: cleanInstructionsHTML }}
+        />
+
         <hr />
         <div className="comments-section">
           <h3>Comments ({(recipe.comments ?? []).length})</h3>
