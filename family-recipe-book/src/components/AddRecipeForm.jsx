@@ -8,10 +8,10 @@ const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onCancelEdit }) {
   const [formData, setFormData] = useState({
-    title: '', image: '', overview: '', ingredients: '', instructions: '', tags: ''
+    title: '', image: '', overview: '', tags: ''
   });
   const [instructionsContent, setInstructionsContent] = useState('');
-  
+  const [ingredients, setIngredients] = useState([{ amount: '', name: '' }]);
   const [imageFile, setImageFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMethod, setUploadMethod] = useState('file');
@@ -19,16 +19,18 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
   useEffect(() => {
     if (recipeToEdit) {
       const tagsString = Array.isArray(recipeToEdit.tags) ? recipeToEdit.tags.join(', ') : '';
-      const { instructions, ...restData } = recipeToEdit;
+      const { ingredients: editIngredients, instructions: editInstructions, ...restData } = recipeToEdit;
       setFormData({...restData, tags: tagsString });
       setInstructionsContent(instructions || '');
+      setIngredients(editIngredients && editIngredients.length > 0 ? editIngredients : [{ amount: '', name: '' }]);
       setImageFile(null);
       if (recipeToEdit.image) {
         setUploadMethod('url');
       }
     } else {
-      setFormData({ title: '', image: '', overview: '', ingredients: '', tags: '' });
+      setFormData({ title: '', image: '', overview: '', tags: '' });
       setInstructionsContent('');
+      setIngredients([{ amount: '', name: '' }]);
       setUploadMethod('file');
     }
   }, [recipeToEdit]);
@@ -38,6 +40,22 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
     setFormData(prevData => ({ ...prevData, [name]: value }));
   };
   
+  const handleIngredientChange = (index, field, value) => {
+    const newIngredients = [...ingredients];
+    newIngredients[index][field] = value;
+    setIngredients(newIngredients);
+  };
+
+  const addIngredientField = () => {
+    setIngredients([...ingredients, { amount: '', name: '' }]);
+  };
+
+  const removeIngredientField = (index) => {
+    const newIngredients = [...ingredients];
+    newIngredients.splice(index, 1);
+    setIngredients(newIngredients);
+  };
+
   const handleInstructionsChange = (content) => {
     setInstructionsContent(content);
   };
@@ -78,7 +96,7 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
         imageUrl = '';
     }
 
-    const finalFormData = { ...formData, image: imageUrl, instructions: instructionsContent };
+    const finalFormData = { ...formData, image: imageUrl, instructions: instructionsContent, ingredients: ingredients.filter(ing => ing.name.trim() !== '') };
 
     const token = await user.getIdToken();
     const isEditing = !!recipeToEdit;
@@ -126,7 +144,47 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
         )}
 
         <textarea name="overview" value={formData.overview} onChange={handleChange} placeholder="Brief Overview" required />
-        <textarea name="ingredients" value={formData.ingredients} onChange={handleChange} placeholder="Ingredients (comma separated)" required />
+        
+        <label>Ingredients:</label>
+        <div className="ingredients-list">
+          {ingredients.map((ing, index) => (
+            <div className="ingredient-field" key={index}>
+              <input
+                type="text"
+                name="amount"
+                placeholder="Amount (e.g., 1 cup)"
+                value={ing.amount}
+                onChange={(e) => handleIngredientChange(index, 'amount', e.target.value)}
+                className="ingredient-amount"
+              />
+              <input
+                type="text"
+                name="name"
+                placeholder="Ingredient Name (e.g., Flour)"
+                value={ing.name}
+                onChange={(e) => handleIngredientChange(index, 'name', e.target.value)}
+                className="ingredient-name"
+                required={index === 0}
+              />
+              {ingredients.length > 1 && (
+                <button 
+                  type="button" 
+                  onClick={() => removeIngredientField(index)}
+                  className="remove-ingredient-btn"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+          ))}
+          <button 
+            type="button" 
+            onClick={addIngredientField}
+            className="add-ingredient-btn"
+          >
+            + Add Ingredient
+          </button>
+        </div>
         <label>Instructions:</label>
         <RichTextEditor
             content={instructionsContent}

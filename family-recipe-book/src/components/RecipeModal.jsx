@@ -9,7 +9,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
   const defaultImageUrl = 'https://images.pexels.com/photos/262959/pexels-photo-262959.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1';
   const [newComment, setNewComment] = useState('');
-
   const [ratingData, setRatingData] = useState({ average: 0, count: 0, userScore: 0 });
   const [isRatingLoading, setIsRatingLoading] = useState(false);
 
@@ -160,8 +159,12 @@ function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
         </div>
         <h3>Ingredients</h3>
         <ul className="ingredient-list">
-            {recipe.ingredients.split(',').map((ingredient, index) => (
-              ingredient.trim() ? <li key={index}>{ingredient.trim()}</li> : null
+            {(recipe.ingredients ?? []).map((ing, index) => (
+              ing.name ? (
+                <li key={index}>
+                  {ing.amount} <strong>{ing.name}</strong>
+                </li>
+              ) : null
             ))}
         </ul>
 

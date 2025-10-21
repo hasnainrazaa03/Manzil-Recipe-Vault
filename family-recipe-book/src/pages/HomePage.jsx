@@ -5,7 +5,8 @@ import RecipeModal from '../components/RecipeModal';
 function HomePage({
   user, recipes, setRecipes, onEdit, view, setView, searchTerm, setSearchTerm,
   currentPage, setCurrentPage, totalPages, savedRecipeIds, onToggleSave, handleDelete,
-  selectedTag, setSelectedTag, availableTags, setIsFormModalOpen, setEditingRecipe
+  selectedTag, setSelectedTag, availableTags, setIsFormModalOpen, setEditingRecipe, sortBy,
+  setSortBy
 }) {
     const [selectedRecipe, setSelectedRecipe] = useState(null);
 
@@ -27,20 +28,20 @@ function HomePage({
             </nav>
             <div className="search-container">
                 <div className="search-input-wrapper">
-                <input
-                    type="text"
-                    placeholder="Search for recipes by title..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="search-input"
-                />
-            </div>
+                    <input
+                        type="text"
+                        placeholder="Search for recipes by title..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="search-input"
+                    />
+                    <i className="fa fa-search search-icon" aria-hidden="true"></i>
+                </div>
             </div>
 
-            {availableTags && availableTags.length > 0 && (
-                <div className="tag-filter-container">
-                    <>
-                        <span>Filter by Tag:</span>
+            <div className="filter-bar">
+                {availableTags && availableTags.length > 0 && (
+                    <div className="tag-filter-container">
                         {availableTags.map(tag => (
                             <button
                                 key={tag}
@@ -55,9 +56,23 @@ function HomePage({
                                 Clear Filter
                             </button>
                         )}
-                    </>
+                    </div>
+                )}
+
+                <div className="sort-container">
+                    <label htmlFor="sort-select">Sort by:</label>
+                    <select
+                        id="sort-select"
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="sort-select"
+                    >
+                        <option value="newest">Newest</option>
+                        <option value="rating">Highest Rated</option>
+                        <option value="popular">Most Popular</option>
+                    </select>
                 </div>
-            )}
+            </div>
 
             <main id="recipe-grid">
                 {(recipes ?? []).length > 0 ? (

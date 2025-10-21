@@ -7,7 +7,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 // === PUBLIC ROUTES ===
 router.get('/public', async (req, res) => {
   try {
-    const { search, tag, page = 1, limit = 6 } = req.query;
+    const { search, tag, page = 1, limit = 6, sort = 'newest' } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
@@ -17,9 +17,17 @@ router.get('/public', async (req, res) => {
       filter.title = { $regex: search, $options: 'i' };
     }
     if (tag) { filter.tags = tag; }
+
+    let sortOptions = { createdAt: -1 }; 
+    if (sort === 'rating') {
+      sortOptions = { averageRating: -1 };
+    } else if (sort === 'popular') {
+      sortOptions = { ratingCount: -1 };
+    }
+
     const totalRecipes = await Recipe.countDocuments(filter);
     const recipes = await Recipe.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(sortOptions)
       .limit(limitNum)
       .skip(skip);
 
@@ -58,7 +66,7 @@ router.use(authMiddleware);
 // GET /api/recipes - Get recipes for the logged-in user
 router.get('/', async (req, res) => {
   try {
-    const { search, tag, page = 1, limit = 6 } = req.query;
+    const { search, tag, page = 1, limit = 6, sort = 'newest' } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
@@ -68,9 +76,17 @@ router.get('/', async (req, res) => {
       filter.title = { $regex: search, $options: 'i' };
     }
     if (tag) { filter.tags = tag; }
+
+    let sortOptions = { createdAt: -1 }; 
+    if (sort === 'rating') {
+      sortOptions = { averageRating: -1 };
+    } else if (sort === 'popular') {
+      sortOptions = { ratingCount: -1 };
+    }
+
     const totalRecipes = await Recipe.countDocuments(filter);
     const recipes = await Recipe.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(sortOptions)
       .limit(limitNum)
       .skip(skip);
     res.json({

@@ -26,7 +26,7 @@ const recipeSchema = new mongoose.Schema({
   title: { type: String, required: true },
   image: { type: String, required: false },
   overview: { type: String, required: true },
-  ingredients: { type: String, required: true },
+  ingredients: [{ amount: { type: String, default: '' }, name: { type: String, required: true }}],
   instructions: { type: String, required: true },
   author: { type: String, required: true },
   authorEmail: { type: String, required: true },

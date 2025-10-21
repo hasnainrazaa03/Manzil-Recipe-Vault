@@ -33,6 +33,7 @@ function App() {
   const [savedRecipeIds, setSavedRecipeIds] = useState(new Set());
   const [selectedTag, setSelectedTag] = useState(null);
   const [availableTags, setAvailableTags] = useState([]);
+  const [sortBy, setSortBy] = useState('newest');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -74,6 +75,7 @@ function App() {
         if (debouncedSearchTerm) { params.append('search', debouncedSearchTerm); }
         if (selectedTag) { params.append('tag', selectedTag); }
         params.append('page', currentPage);
+        params.append('sort', sortBy);
         url += `?${params.toString()}`;
         try {
             const response = await fetch(url, { headers });
@@ -84,7 +86,7 @@ function App() {
     };
     if (view === 'private' && !user) { navigate('/login'); }
     else { fetchRecipes(); }
-  }, [user, view, debouncedSearchTerm, currentPage, navigate, refetchTrigger, selectedTag]);
+  }, [user, view, debouncedSearchTerm, currentPage, navigate, refetchTrigger, selectedTag, , sortBy]);
 
   useEffect(() => {
     const fetchTags = async () => {
@@ -101,7 +103,7 @@ function App() {
     fetchTags();
   }, [refetchTrigger]);
 
-  useEffect(() => { setCurrentPage(1); setSelectedTag(null);}, [view, debouncedSearchTerm]);
+  useEffect(() => { setCurrentPage(1); setSelectedTag(null); setSortBy('newest');}, [view, debouncedSearchTerm]);
 
   const handleRecipeAdded = () => { setIsFormModalOpen(false); setRefetchTrigger(c => c + 1); toast.success('Recipe added successfully!'); };
   const handleRecipeUpdated = (updatedRecipe) => { setRecipes(prev => prev.map(r => r._id === updatedRecipe._id ? updatedRecipe : r)); setEditingRecipe(null); setRefetchTrigger(c => c + 1); toast.success('Recipe updated successfully!'); };
@@ -220,6 +222,8 @@ function App() {
             availableTags={availableTags}
             setIsFormModalOpen={setIsFormModalOpen}
             setEditingRecipe={setEditingRecipe}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
           />}
         />
         <Route path="/profile/:userId" element={

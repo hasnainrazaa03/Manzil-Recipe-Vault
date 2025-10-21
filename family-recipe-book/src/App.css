@@ -731,6 +731,7 @@ header {
   overflow: hidden;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   transition: width 0.3s ease, background-color 0.2s ease; 
 }
 
@@ -753,6 +754,7 @@ header {
   font-weight: 300;
   line-height: 1;
   color: var(--button-primary-text); 
+  margin-left: auto;
 }
 .floating-add-btn .text {
   left: 65px;
@@ -1283,4 +1285,158 @@ header {
 }
 .tiptap-editor li > p {
     margin: 0.2em 0; 
+}
+
+/* Filter Bar Layout */
+.filter-bar {
+  display: flex;
+  flex-direction: column; 
+  align-items: center; 
+  margin: 0 var(--spacing-4) var(--spacing-8) var(--spacing-4);
+}
+
+.tag-filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center; 
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: 0;
+  background-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+.tag-filter-container span {
+ display: none;
+}
+
+.sort-container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  justify-content: center;
+}
+.sort-container label {
+  font-weight: 500;
+  color: var(--primary-text);
+  font-size: 0.9rem;
+}
+.sort-select {
+  padding: var(--spacing-2) var(--spacing-8) var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background-color: var(--card-background);
+  color: var(--primary-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right var(--spacing-3) center;
+  background-size: 1em;
+  padding-right: var(--spacing-8);
+}
+.sort-select:focus {
+  border-color: var(--primary-text);
+  box-shadow: 0 0 0 3px rgba(45, 55, 72, 0.1);
+  outline: none;
+}
+
+/* --- Saved Recipes Page Styling --- */
+.saved-recipes-page {
+  max-width: 1200px; 
+  margin: 0 auto;
+  padding: 0 var(--spacing-8);
+  box-sizing: border-box; 
+}
+
+.saved-recipes-page h2 {
+  text-align: center; 
+  font-size: 1.8rem;
+  margin: var(--spacing-8) 0;
+  color: var(--primary-text);
+}
+
+/* --- Dynamic Ingredients Form Styling --- */
+.ingredients-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+.ingredient-field {
+  display: flex;
+  gap: var(--spacing-2);
+}
+.ingredient-amount {
+  flex: 1;
+}
+.ingredient-name {
+  flex: 2;
+}
+.remove-ingredient-btn {
+  padding: 0 var(--spacing-3);
+  border: 1px solid var(--border-color);
+  background-color: var(--danger-color);
+  color: white;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1.2rem;
+  transition: background-color 0.2s ease;
+}
+.remove-ingredient-btn:hover {
+  background-color: var(--danger-dark);
+}
+.add-ingredient-btn {
+  padding: var(--spacing-2) var(--spacing-4);
+  border: 1px dashed var(--secondary-text);
+  background-color: transparent;
+  color: var(--secondary-text);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  margin-top: var(--spacing-2);
+}
+.add-ingredient-btn:hover {
+  background-color: var(--accent-color);
+  border-style: solid;
+  color: var(--primary-text);
+}
+
+/* --- Modal Content Styling --- */
+.ingredient-list, .instruction-content ol, .instruction-content ul {
+  padding-left: var(--spacing-6); 
+  margin-top: 0;
+  margin-bottom: var(--spacing-6);
+  color: var(--secondary-text);
+}
+.ingredient-list li {
+  margin-bottom: var(--spacing-2); 
+}
+.ingredient-list li strong {
+  color: var(--primary-text);
+  font-weight: 600;
+  margin-right: var(--spacing-2);
+}
+
+.instruction-content p {
+  margin-top: 0;
+  margin-bottom: 1em;
+  line-height: 1.6;
+  color: var(--secondary-text);
+}
+.instruction-content strong {
+  color: var(--primary-text);
+  font-weight: 600;
+}
+.instruction-content ul, .instruction-content ol {
+  line-height: 1.8;
+}
+.instruction-content li {
+  margin-bottom: var(--spacing-2);
 }
