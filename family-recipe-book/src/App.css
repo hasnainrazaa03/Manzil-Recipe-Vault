@@ -700,7 +700,7 @@ header {
     width: 36px; 
     height: 36px;
     border-radius: 50%;
-    font-size: 1.3rem; 
+    font-size: 1.3rem;
     cursor: pointer;
     display: flex; 
     align-items: center;
@@ -998,6 +998,7 @@ header {
   border-radius: var(--radius-xl);
   box-shadow: 0 4px 6px -1px var(--shadow-color);
   max-width: 600px;
+  grid-column: 1 / -1;
 }
 .empty-state i {
   font-size: 3rem;

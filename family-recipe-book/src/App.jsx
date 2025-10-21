@@ -111,13 +111,27 @@ function App() {
   const handleToggleSave = async (recipeId) => {
     if (!user) return;
     const token = await user.getIdToken();
-    await fetch(`${API_BASE_URL}/api/users/save/${recipeId}`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }});
-    setSavedRecipeIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(recipeId)) { newSet.delete(recipeId); toast.info('Recipe removed from saved!'); }
-      else { newSet.add(recipeId); toast.success('Recipe saved!'); }
-      return newSet;
-    });
+    const wasSaved = savedRecipeIds.has(recipeId);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/save/${recipeId}`, { 
+          method: 'PUT', 
+          headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) {
+          throw new Error("Failed to save recipe");
+      }
+      const updatedProfile = await response.json();
+      setSavedRecipeIds(new Set(updatedProfile.savedRecipes));
+      if (wasSaved) {
+          toast.info('Recipe removed from saved!');
+      } else {
+          toast.success('Recipe saved!');
+      }
+      setRefetchTrigger(c => c + 1);
+    } catch (error) {
+      toast.error("Failed to update saved recipes.");
+      console.error("Error toggling save:", error);
+    }
   };
     const handleDelete = (id, currentRecipes) => {
     const proceedWithDelete = async () => {

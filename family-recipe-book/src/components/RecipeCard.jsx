@@ -15,8 +15,8 @@ function RecipeCard({ recipe, onClick, user, onDelete, onEdit, isSaved, onToggle
         <img src={recipe.image || defaultImageUrl} alt={recipe.title} onClick={onClick} />
         {user && typeof onToggleSave === 'function' && (
             <button onClick={() => onToggleSave(recipe._id)} className={`save-btn ${isSaved ? 'saved' : ''}`}>
-                {isSaved ? '★' : '☆'}
-            </button>
+              {isSaved ? <i className="fa fa-star"></i> : <i className="fa fa-star-o"></i>}
+          </button>
         )}
       </div>
       <div className="card-content">
