@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import RichTextEditor from './RichTextEditor';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -9,6 +10,8 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
   const [formData, setFormData] = useState({
     title: '', image: '', overview: '', ingredients: '', instructions: '', tags: ''
   });
+  const [instructionsContent, setInstructionsContent] = useState('');
+  
   const [imageFile, setImageFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMethod, setUploadMethod] = useState('file');
@@ -16,13 +19,16 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
   useEffect(() => {
     if (recipeToEdit) {
       const tagsString = Array.isArray(recipeToEdit.tags) ? recipeToEdit.tags.join(', ') : '';
-      setFormData({...recipeToEdit, tags: tagsString });
+      const { instructions, ...restData } = recipeToEdit;
+      setFormData({...restData, tags: tagsString });
+      setInstructionsContent(instructions || '');
       setImageFile(null);
       if (recipeToEdit.image) {
         setUploadMethod('url');
       }
     } else {
-      setFormData({ title: '', image: '', overview: '', ingredients: '', instructions: '', tags: '' });
+      setFormData({ title: '', image: '', overview: '', ingredients: '', tags: '' });
+      setInstructionsContent('');
       setUploadMethod('file');
     }
   }, [recipeToEdit]);
@@ -32,6 +38,10 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
     setFormData(prevData => ({ ...prevData, [name]: value }));
   };
   
+  const handleInstructionsChange = (content) => {
+    setInstructionsContent(content);
+  };
+
   const handleImageChange = (e) => {
     setImageFile(e.target.files[0]);
   };
@@ -68,7 +78,7 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
         imageUrl = '';
     }
 
-    const finalFormData = { ...formData, image: imageUrl };
+    const finalFormData = { ...formData, image: imageUrl, instructions: instructionsContent };
 
     const token = await user.getIdToken();
     const isEditing = !!recipeToEdit;

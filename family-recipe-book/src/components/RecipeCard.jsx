@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Rating } from 'react-simple-star-rating';
 
 function RecipeCard({ recipe, onClick, user, onDelete, onEdit, isSaved, onToggleSave }) {
 
@@ -20,6 +21,17 @@ function RecipeCard({ recipe, onClick, user, onDelete, onEdit, isSaved, onToggle
       </div>
       <div className="card-content">
         <h2 onClick={onClick}>{recipe.title}</h2>
+        <div className="card-rating">
+          <Rating
+            initialValue={recipe.averageRating || 0}
+            readonly
+            size={20}
+            allowFraction
+            fillColor="#FFC107" 
+            emptyColor="#E4E5E9"
+          />
+          <span className="rating-count">({recipe.ratingCount || 0})</span>
+        </div>
         {recipe.author && recipe.authorEmail && (
             <p className="author-email">
                 By: <Link to={`/profile/${recipe.author}`}>{recipe.authorEmail}</Link>

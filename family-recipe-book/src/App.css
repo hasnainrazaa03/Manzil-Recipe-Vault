@@ -1136,4 +1136,106 @@ header h1 {
   align-items: center; 
   gap: var(--spacing-2);
 }
+/* Card Rating */
+.card-rating {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-2);
+}
+.card-rating .rating-count {
+  font-size: 0.8rem;
+  color: var(--secondary-text);
+}
+.card-rating .react-simple-star-rating svg {
+  vertical-align: middle;
+}
+/* Modal Rating Section Styling */
+.modal-rating-section {
+  background-color: var(--accent-color);
+  padding: var(--spacing-4);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+.average-rating {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.average-rating span {
+  font-size: 0.9rem;
+  color: var(--secondary-text);
+  font-weight: 500;
+}
+.user-rating {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.user-rating label {
+  font-weight: 500;
+  color: var(--primary-text);
+}
+.modal-rating-section .react-simple-star-rating svg {
+  vertical-align: middle;
+}
 
+/* --- Tiptap Editor Styling --- */
+.tiptap-wrapper {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.editor-toolbar {
+  background-color: var(--accent-color); 
+  padding: var(--spacing-2); 
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.editor-toolbar button {
+  background: none;
+  border: none;
+  padding: var(--spacing-1) var(--spacing-2); 
+  border-radius: var(--radius-md); 
+  cursor: pointer;
+  color: var(--secondary-text);
+  font-weight: 500;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.editor-toolbar button:hover {
+  background-color: var(--button-secondary-bg);
+  color: var(--primary-text);
+}
+
+.editor-toolbar button.is-active {
+  background-color: var(--button-primary-bg);
+  color: var(--button-primary-text);
+}
+
+.tiptap-editor {
+  padding: var(--spacing-3) var(--spacing-4);
+  min-height: 150px;
+  background-color: var(--card-background); 
+  color: var(--primary-text);
+  outline: none; 
+}
+
+.tiptap-wrapper:focus-within {
+   border-color: var(--primary-text);
+   box-shadow: 0 0 0 3px rgba(45, 55, 72, 0.1);
+}
+
+.tiptap-editor ul, .tiptap-editor ol {
+    padding-left: 1.5rem;
+}
+.tiptap-editor li > p {
+    margin: 0.2em 0; 
+}

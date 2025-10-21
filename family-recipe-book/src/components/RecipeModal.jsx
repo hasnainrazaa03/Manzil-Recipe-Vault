@@ -1,12 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
+import { Rating } from 'react-simple-star-rating';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
   const defaultImageUrl = 'https://images.pexels.com/photos/262959/pexels-photo-262959.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1';
   const [newComment, setNewComment] = useState('');
+
+  const [ratingData, setRatingData] = useState({ average: 0, count: 0, userScore: 0 });
+  const [isRatingLoading, setIsRatingLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchRatings = async () => {
+      if (!user || !recipe?._id) return;
+      setIsRatingLoading(true);
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch(`${API_BASE_URL}/api/recipes/${recipe._id}/ratings`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Failed to fetch ratings');
+        const data = await response.json();
+        setRatingData({
+          average: data.averageRating || 0,
+          count: data.ratingCount || 0,
+          userScore: data.userScore || 0
+        });
+      } catch (error) {
+        console.error("Error fetching ratings:", error);
+      }
+      setIsRatingLoading(false);
+    };
+
+    fetchRatings();
+    setNewComment('');
+  }, [recipe, user]); 
+
+  const handleRating = async (newScore) => {
+    if (!user || !recipe?._id) return;
+    setIsRatingLoading(true); 
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`${API_BASE_URL}/api/recipes/${recipe._id}/rate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ score: newScore })
+      });
+      if (!response.ok) throw new Error('Failed to submit rating');
+      const updatedRecipe = await response.json(); 
+
+      
+      setRatingData({
+        average: updatedRecipe.averageRating,
+        count: updatedRecipe.ratingCount,
+        userScore: newScore 
+      });
+      toast.success("Thank you for rating!");
+
+      if (onCommentAdded) { 
+         onCommentAdded(updatedRecipe);
+      }
+
+    } catch (error) {
+      toast.error("Failed to submit rating.");
+      console.error("Error submitting rating:", error);
+    }
+    setIsRatingLoading(false);
+  };
 
   useEffect(() => {
       setNewComment('');
@@ -62,7 +127,34 @@ function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
             ))}
           </div>
         )}
-
+        <div className="modal-rating-section">
+          <div className="average-rating">
+            <Rating
+              initialValue={ratingData.average}
+              readonly
+              size={24}
+              allowFraction
+              fillColor="#FFC107"
+              emptyColor="#E4E5E9"
+            />
+            <span>{ratingData.average.toFixed(1)} ({ratingData.count} reviews)</span>
+          </div>
+          {user && (
+            <div className="user-rating">
+              <label>Your Rating:</label>
+              <Rating
+                initialValue={ratingData.userScore}
+                onClick={handleRating}
+                size={28}
+                fillColor="#FFC107"
+                emptyColor="#E4E5E9"
+                transition
+                allowHover={!isRatingLoading} 
+                readonly={isRatingLoading} 
+              />
+            </div>
+          )}
+        </div>
         <h3>Ingredients</h3>
         <ul className="ingredient-list">
             {recipe.ingredients.split(',').map((ingredient, index) => (

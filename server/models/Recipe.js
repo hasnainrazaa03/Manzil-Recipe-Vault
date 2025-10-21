@@ -9,6 +9,19 @@ const commentSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+const ratingSchema = new mongoose.Schema({
+  userId: {
+    type: String,
+    required: true,
+  },
+  score: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5,
+  },
+}, { _id: false });
+
 const recipeSchema = new mongoose.Schema({
   title: { type: String, required: true },
   image: { type: String, required: false },
@@ -19,6 +32,17 @@ const recipeSchema = new mongoose.Schema({
   authorEmail: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
   tags: [{ type: String }],
+  ratings: [ratingSchema],
+  averageRating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5,
+  },
+  ratingCount: {
+    type: Number,
+    default: 0,
+  },
   comments: [commentSchema]
 });
 
