@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import RecipeCard from '../components/RecipeCard';
 import RecipeModal from '../components/RecipeModal';
 
-function ProfilePage({ user, onEdit, refetchTrigger, setRefetchTrigger, savedRecipeIds, onToggleSave, handleDelete }) {
+function ProfilePage({ user, onEdit, refetchTrigger, setRefetchTrigger, savedRecipeIds, onToggleSave, handleDelete, setIsFormModalOpen, setEditingRecipe }) {
   const [profileUser, setProfileUser] = useState(null);
   const [recipes, setRecipes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,15 +40,18 @@ function ProfilePage({ user, onEdit, refetchTrigger, setRefetchTrigger, savedRec
     setRecipes(prev => prev.map(r => r._id === updatedRecipe._id ? updatedRecipe : r));
     setSelectedRecipe(updatedRecipe);
   };
+
+  const openAddModal = () => {
+    setEditingRecipe(null);
+    setIsFormModalOpen(true);
+  };
   
-  if (isLoading) {
-    return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        Loading Profile...
-      </div>
-    );
-  }
+  if (isLoading) return (
+    <div className="loading-container">
+      <div className="spinner"></div>
+      Loading Profile...
+    </div>
+  );
   if (!profileUser) return <div>User not found.</div>;
 
   return (
@@ -67,12 +70,12 @@ function ProfilePage({ user, onEdit, refetchTrigger, setRefetchTrigger, savedRec
       </div>
 
       <main id="recipe-grid">
-        { recipes.length > 0 ? (
+        {recipes.length > 0 ? (
           recipes.map(recipe => (
-            <RecipeCard
-              key={recipe._id}
-              recipe={recipe}
-              user={user}
+            <RecipeCard 
+              key={recipe._id} 
+              recipe={recipe} 
+              user={user} 
               onClick={() => setSelectedRecipe(recipe)}
               onDelete={isOwner ? () => handleDelete(recipe._id, recipes) : null}
               onEdit={isOwner ? onEdit : null}
@@ -82,8 +85,20 @@ function ProfilePage({ user, onEdit, refetchTrigger, setRefetchTrigger, savedRec
           ))
         ) : (
           <div className="empty-state">
-              <i className="fa fa-book" aria-hidden="true"></i>
-              <p>This user hasn't added any recipes yet.</p>
+            {isOwner ? (
+                <>
+                    <i className="fa fa-book" aria-hidden="true"></i>
+                    <p>You haven't added any recipes yet.</p>
+                    <button onClick={openAddModal} className="empty-state-btn">
+                        Add Your First Recipe
+                    </button>
+                </>
+            ) : (
+                <>
+                    <i className="fa fa-book" aria-hidden="true"></i>
+                    <p>This user hasn't added any recipes yet.</p>
+                </>
+            )}
           </div>
         )}
       </main>

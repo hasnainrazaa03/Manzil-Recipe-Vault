@@ -1,22 +1,23 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import RecipeCard from '../components/RecipeCard';
 import RecipeModal from '../components/RecipeModal';
 
 function HomePage({
   user, recipes, setRecipes, onEdit, view, setView, searchTerm, setSearchTerm,
   currentPage, setCurrentPage, totalPages, savedRecipeIds, onToggleSave, handleDelete,
-  selectedTag, setSelectedTag, availableTags
+  selectedTag, setSelectedTag, availableTags, setIsFormModalOpen, setEditingRecipe
 }) {
     const [selectedRecipe, setSelectedRecipe] = useState(null);
-    const navigate = useNavigate(); 
 
     const handleRecipeUpdated = (updatedRecipe) => {
         setRecipes(prev => prev.map(r => r._id === updatedRecipe._id ? updatedRecipe : r));
         setSelectedRecipe(prev => prev?._id === updatedRecipe._id ? updatedRecipe : prev);
     };
 
-    console.log("HomePage received availableTags:", availableTags);
+    const openAddModal = () => {
+      setEditingRecipe(null);
+      setIsFormModalOpen(true);
+    };
 
     return (
         <>
@@ -26,15 +27,14 @@ function HomePage({
             </nav>
             <div className="search-container">
                 <div className="search-input-wrapper">
-                    <input
-                        type="text"
-                        placeholder="Search for recipes by title..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="search-input"
-                    />
-                    <span className="search-icon"><i className="fa fa-search search-icon" aria-hidden="true"></i></span>
-                </div>
+                <input
+                    type="text"
+                    placeholder="Search for recipes by title..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="search-input"
+                />
+            </div>
             </div>
 
             {availableTags && availableTags.length > 0 && (
@@ -60,24 +60,36 @@ function HomePage({
             )}
 
             <main id="recipe-grid">
-                {recipes.length > 0 ? (
-                (recipes ?? []).map(recipe => (
-                    <RecipeCard
-                        key={recipe._id}
-                        recipe={recipe}
-                        onClick={() => setSelectedRecipe(recipe)}
-                        user={user}
-                        onDelete={() => handleDelete(recipe._id, recipes)}
-                        onEdit={onEdit}
-                        isSaved={savedRecipeIds.has(recipe._id)}
-                        onToggleSave={onToggleSave}
-                    />
-                ))
-            ) : (
-                <div className="empty-state">
-                    <i className="fa fa-folder-open-o" aria-hidden="true"></i>
-                    <p>No recipes found matching your criteria.</p>
-                </div>
+                {(recipes ?? []).length > 0 ? (
+                    recipes.map(recipe => (
+                        <RecipeCard
+                            key={recipe._id}
+                            recipe={recipe}
+                            onClick={() => setSelectedRecipe(recipe)}
+                            user={user}
+                            onDelete={() => handleDelete(recipe._id, recipes)}
+                            onEdit={onEdit}
+                            isSaved={savedRecipeIds.has(recipe._id)}
+                            onToggleSave={onToggleSave}
+                        />
+                    ))
+                ) : (
+                    <div className="empty-state">
+                        {view === 'private' ? (
+                            <>
+                                <i className="fa fa-plus-circle" aria-hidden="true"></i>
+                                <p>You haven't added any recipes yet.</p>
+                                <button onClick={openAddModal} className="empty-state-btn">
+                                    Add Your First Recipe
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <i className="fa fa-folder-open-o" aria-hidden="true"></i>
+                                <p>No recipes found matching your criteria.</p>
+                            </>
+                        )}
+                    </div>
                 )}
             </main>
 
@@ -88,7 +100,7 @@ function HomePage({
                     <button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages}>Next</button>
                 </div>
             )}
-
+            
             {selectedRecipe && (
                 <RecipeModal
                     recipe={selectedRecipe}

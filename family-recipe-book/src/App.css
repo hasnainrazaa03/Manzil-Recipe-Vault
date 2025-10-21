@@ -69,58 +69,71 @@ a:hover {
 
 /* --- Header Styling --- */
 header {
-    background-color: var(--card-background);
-    color: var(--primary-text); 
-    padding: var(--spacing-4) var(--spacing-8); 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: var(--spacing-6);
-    box-shadow: 0 4px 6px -1px var(--shadow-color);
-    border-bottom: 1px solid var(--border-color);
+  position: sticky; 
+  top: 0;
+  z-index: 1000; 
+
+  background-color: rgba(255, 255, 255, 0.7); 
+  backdrop-filter: blur(10px); 
+  -webkit-backdrop-filter: blur(10px); 
+
+  padding: var(--spacing-4) var(--spacing-8); 
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-6);
+
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02); 
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3); 
+  
+  color: var(--primary-text); 
 }
 
-header h1 {
-    margin: 0;
-    font-size: 2rem;
-    font-weight: 700;
+.header-logo {
+  height: 50px; /* You can adjust this height */
+  width: auto;
+  display: block;
 }
 
 .user-info {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-6);
-    flex-wrap: wrap;
-    justify-content: center;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .nav-link {
-    color: var(--primary-text);
-    font-weight: 500;
-    text-decoration: none;
-    transition: color 0.2s ease;
+  color: var(--primary-text);
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s ease;
 }
 .nav-link:hover {
-    color: var(--secondary-text);
-    text-decoration: none;
+  color: var(--secondary-text);
+  text-decoration: none;
+}
+.user-info span {
+  color: var(--secondary-text);
+  font-size: 0.9rem;
 }
 
 .login-button,
 .logout-button {
-    padding: var(--spacing-2) var(--spacing-4); 
-    border: none;
-    background-color: var(--button-primary-bg); 
-    color: var(--button-primary-text); 
-    border-radius: var(--radius-lg); 
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    transition: background-color 0.2s ease;
+  padding: var(--spacing-2) var(--spacing-4);
+  border: none;
+  background-color: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border-radius: var(--radius-lg);
+  cursor: pointer;  
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
 }
 .login-button:hover,
 .logout-button:hover {
-    background-color: var(--secondary-text); 
+  background-color: var(--secondary-text);
 }
 
 
@@ -975,20 +988,45 @@ header h1 {
     background-color: #FEB2B2;
 }
 
+/* --- Empty State Styling --- */
 .empty-state {
   text-align: center;
   color: var(--secondary-text);
-  padding: var(--spacing-8);
-  margin-top: var(--spacing-8);
+  padding: var(--spacing-8) var(--spacing-6); 
+  margin: var(--spacing-8) auto;
+  background-color: var(--card-background);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4px 6px -1px var(--shadow-color);
+  max-width: 600px;
 }
-.empty-state i { 
+.empty-state i {
   font-size: 3rem;
   margin-bottom: var(--spacing-4);
-  display: block; 
+  display: block;
+  color: var(--primary-text);
 }
 .empty-state p {
   font-size: 1.1rem;
   font-weight: 500;
+  margin-top: 0;
+  margin-bottom: var(--spacing-6);
+}
+
+.empty-state-btn {
+  padding: var(--spacing-3) var(--spacing-5);
+  border: none;
+  border-radius: var(--radius-lg);
+  background-color: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  text-decoration: none; 
+  display: inline-block;
+}
+.empty-state-btn:hover {
+  background-color: var(--secondary-text);
 }
 
 /* --- Animations --- */

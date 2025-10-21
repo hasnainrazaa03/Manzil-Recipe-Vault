@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { auth } from '../firebase';
 import RecipeCard from '../components/RecipeCard';
+import { Link } from 'react-router-dom';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 function SavedRecipesPage({ user, savedRecipeIds, onToggleSave }) {
@@ -30,14 +31,12 @@ function SavedRecipesPage({ user, savedRecipeIds, onToggleSave }) {
     fetchSavedRecipes();
   }, [user, currentPage]);
 
-  if (isLoading) {
-   return (
-     <div className="loading-container">
-       <div className="spinner"></div>
-       Loading Saved Recipes...
-     </div>
-   );
- }
+  if (isLoading) return (
+    <div className="loading-container">
+      <div className="spinner"></div>
+      Loading Saved Recipes...
+    </div>
+  );
 
   return (
     <div className="saved-recipes-page">
@@ -55,9 +54,12 @@ function SavedRecipesPage({ user, savedRecipeIds, onToggleSave }) {
           ))}
         </main>
       ) : (
-       <div className="empty-state">
-        <i className="fa fa-star-o" aria-hidden="true"></i>
-        <p>You haven't saved any recipes yet.</p>
+        <div className="empty-state">
+            <i className="fa fa-star-o" aria-hidden="true"></i>
+            <p>You haven't saved any recipes yet.</p>
+            <Link to="/" className="empty-state-btn">
+                Browse Public Recipes
+            </Link>
         </div>
       )}
 
