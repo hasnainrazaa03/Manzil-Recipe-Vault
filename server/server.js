@@ -5,6 +5,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const recipeRoutes = require('./routes/recipes');
 const userRoutes = require('./routes/users');
+const uploadRoutes = require('./routes/upload');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -20,6 +21,7 @@ app.use(express.json());
 //API Routes
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/upload', uploadRoutes);
 
 //Basic root route for testing connection
 app.get('/', (req, res) => {

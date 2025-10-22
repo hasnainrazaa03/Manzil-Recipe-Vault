@@ -72,24 +72,31 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
 
     if (uploadMethod === 'file' && imageFile) {
       setIsUploading(true);
+      const sigRes = await fetch(`${API_BASE_URL}/api/upload/image-signature`, {
+        method: 'POST', 
+        headers: { 'Authorization': `Bearer ${await user.getIdToken()}` }
+      });
+      const { timestamp, signature } = await sigRes.json();
       const data = new FormData();
       data.append('file', imageFile);
-      data.append('upload_preset', CLOUDINARY_UPLOAD_PRESET); 
-
+      data.append('api_key', import.meta.env.VITE_CLOUDINARY_API_KEY);
+      data.append('timestamp', timestamp);
+      data.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      data.append('signature', signature);
       try {
         const response = await fetch(
-          `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, 
-          { method: 'POST', body: data }
-        );
-        const fileData = await response.json();
-        imageUrl = fileData.secure_url;
-      } catch (error) {
-        console.error("Image upload failed:", error);
-        toast.error("Image upload failed. Please try again.");
-        setIsUploading(false);
-        return;
-      }
-      setIsUploading(false);
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
+        { method: 'POST', body: data }
+      );
+      const fileData = await response.json();
+      imageUrl = fileData.secure_url;
+   } catch (error) {
+     console.error("Image upload failed:", error);
+     toast.error("Image upload failed. Please try again.");
+     setIsUploading(false);
+     return;
+   }
+   setIsUploading(false);
     } else if (uploadMethod === 'url') {
         imageUrl = formData.image;
     } else {
