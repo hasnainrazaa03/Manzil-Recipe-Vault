@@ -47,8 +47,8 @@ function RecipeCard({ recipe, onClick, user, onDelete, onEdit, isSaved, onToggle
         )}
         {isAuthor && (
           <div className="card-actions">
-            <button onClick={() => onEdit(recipe)}>Edit</button>
-            <button onClick={() => onDelete(recipe._id)}>Delete</button>
+            <button onClick={() => onEdit(recipe)}>Edit</button> 
+            <button onClick={onDelete}>Delete</button>
           </div>
         )}
       </div>

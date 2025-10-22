@@ -91,7 +91,7 @@ header {
 }
 
 .header-logo {
-  height: 50px; /* You can adjust this height */
+  height: 50px;
   width: auto;
   display: block;
 }

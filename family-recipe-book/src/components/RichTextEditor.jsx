@@ -84,6 +84,12 @@ function RichTextEditor({ content, onChange, placeholder }) {
     },
   });
 
+  React.useEffect(() => {
+  if (editor && content !== editor.getHTML()) {
+    editor.commands.setContent(content || '');
+  }
+}, [content, editor]);
+
   const placeholderStyle = `
     .tiptap-editor p.is-editor-empty:first-child::before {
       content: attr(data-placeholder);

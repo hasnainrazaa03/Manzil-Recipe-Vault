@@ -86,7 +86,7 @@ function App() {
     };
     if (view === 'private' && !user) { navigate('/login'); }
     else { fetchRecipes(); }
-  }, [user, view, debouncedSearchTerm, currentPage, navigate, refetchTrigger, selectedTag, , sortBy]);
+  }, [user, view, debouncedSearchTerm, currentPage, navigate, refetchTrigger, selectedTag, sortBy]);
 
   useEffect(() => {
     const fetchTags = async () => {

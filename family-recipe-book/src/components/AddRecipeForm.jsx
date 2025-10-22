@@ -10,18 +10,18 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
   const [formData, setFormData] = useState({
     title: '', image: '', overview: '', tags: ''
   });
-  const [instructionsContent, setInstructionsContent] = useState('');
   const [ingredients, setIngredients] = useState([{ amount: '', name: '' }]);
+  const [instructionsContent, setInstructionsContent] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMethod, setUploadMethod] = useState('file');
 
   useEffect(() => {
     if (recipeToEdit) {
-      const tagsString = Array.isArray(recipeToEdit.tags) ? recipeToEdit.tags.join(', ') : '';
-      const { ingredients: editIngredients, instructions: editInstructions, ...restData } = recipeToEdit;
+      const { ingredients: editIngredients, instructions: editInstructions, tags: editTags, ...restData } = recipeToEdit;
+      const tagsString = Array.isArray(editTags) ? editTags.join(', ') : '';
       setFormData({...restData, tags: tagsString });
-      setInstructionsContent(instructions || '');
+      setInstructionsContent(editInstructions || '');
       setIngredients(editIngredients && editIngredients.length > 0 ? editIngredients : [{ amount: '', name: '' }]);
       setImageFile(null);
       if (recipeToEdit.image) {
@@ -129,7 +129,7 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
     <div className="form-container">
       <h2>{recipeToEdit ? 'Edit Recipe' : 'Add a New Recipe'}</h2>
       <form onSubmit={handleSubmit}>
-        <input name="title" value={formData.title} onChange={handleChange} placeholder="Recipe Title" required />
+        <input name="title" value={formData.title || ''} onChange={handleChange} placeholder="Recipe Title" required />
         
         <div className="image-upload-toggle">
             <label>Image:</label>
@@ -140,10 +140,10 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
         {uploadMethod === 'file' ? (
             <input type="file" onChange={handleImageChange} accept="image/png, image/jpeg" />
         ) : (
-            <input name="image" value={formData.image} onChange={handleChange} placeholder="Paste Image URL" />
+            <input name="image" value={formData.image || ''} onChange={handleChange} placeholder="Paste Image URL" />
         )}
 
-        <textarea name="overview" value={formData.overview} onChange={handleChange} placeholder="Brief Overview" required />
+        <textarea name="overview" value={formData.overview || ''} onChange={handleChange} placeholder="Brief Overview" required />
         
         <label>Ingredients:</label>
         <div className="ingredients-list">
@@ -153,7 +153,7 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
                 type="text"
                 name="amount"
                 placeholder="Amount (e.g., 1 cup)"
-                value={ing.amount}
+                value={ing.amount || ''}
                 onChange={(e) => handleIngredientChange(index, 'amount', e.target.value)}
                 className="ingredient-amount"
               />
@@ -161,7 +161,7 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
                 type="text"
                 name="name"
                 placeholder="Ingredient Name (e.g., Flour)"
-                value={ing.name}
+                value={ing.name || ''}
                 onChange={(e) => handleIngredientChange(index, 'name', e.target.value)}
                 className="ingredient-name"
                 required={index === 0}
@@ -193,7 +193,7 @@ function AddRecipeForm({ user, onRecipeAdded, recipeToEdit, onRecipeUpdated, onC
         />
         
         <label>Tags (comma-separated):</label>
-        <input name="tags" value={formData.tags} onChange={handleChange} placeholder="e.g., dessert, quick, vegan" />
+        <input name="tags" value={formData.tags || ''} onChange={handleChange} placeholder="e.g., dessert, quick, vegan" />
 
         <button type="submit" disabled={isUploading}>
             {isUploading ? 'Uploading Image...' : (recipeToEdit ? 'Update Recipe' : 'Add Recipe')}
