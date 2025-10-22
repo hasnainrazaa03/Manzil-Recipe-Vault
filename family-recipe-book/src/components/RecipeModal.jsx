@@ -207,7 +207,7 @@ function RecipeModal({ recipe, onClose, user, onCommentAdded }) {
                         {comment.authorDisplayName || comment.authorEmail}
                     </span>
                     </div>
-                    <p className="comment-text">{comment.text}</p>
+                    <p className="comment-text" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(comment.text) }}/>
                     <p className="comment-date">
                     {new Date(comment.createdAt).toLocaleDateString()}
                     </p>
