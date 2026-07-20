@@ -11,7 +11,16 @@ build/
 .env
 .env.*
 !.env.example
-serviceAccountKey.json
+
+# Firebase service-account keys. Broad on purpose: the console downloads them
+# with a generated name like `myapp-firebase-adminsdk-fbsvc-6df9cbdaa2.json`,
+# which an exact-filename rule does not catch — so the key sat in the working
+# tree one `git add -A` away from being published.
+serviceAccountKey*.json
+*serviceaccount*.json
+*service-account*.json
+*firebase-adminsdk*.json
+*.key.json
 
 # Logs
 logs
