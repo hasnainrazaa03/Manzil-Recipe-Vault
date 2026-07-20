@@ -223,36 +223,91 @@ describe('POST /api/import — fetching', () => {
     expect(requested).toEqual([`https://${HOST}/lemon-rice`]);
   });
 
-  it('refuses a non-http scheme', async () => {
-    // The bare-domain normalisation only recognises `http(s)://`, so `file:` is
-    // rewritten to `https://file:///etc/passwd` and dies at the resolver rather
-    // than at the protocol check. Either way it is a 400 and nothing is opened;
-    // the code is asserted so a change in *why* shows up here.
-    const res = await importUrl('file:///etc/passwd');
+  /**
+   * The normalisation only prepends `https://` when there is no scheme at all,
+   * so a non-http scheme reaches the protocol check and is refused for the
+   * reason it deserves rather than as a DNS failure. Pinned for more than one
+   * value, because a check that only ever saw `file:` would not be a check.
+   */
+  const schemes = [
+    'file:///etc/passwd',
+    'gopher://127.0.0.1:6379/_INFO',
+    'data:text/html,<h1>x</h1>',
+    // Colon-then-non-digit, with no `//` at all — the same branch as the two
+    // above, approached from the side that looks least like a URL.
+    'mailto:cook@example.net',
+    'javascript:alert(1)',
+  ];
+
+  for (const url of schemes) {
+    it(`refuses ${url} as bad_protocol`, async () => {
+      const res = await importUrl(url);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('bad_protocol');
+      expect(res.body.error.message).toMatch(/http/i);
+      expect(requested).toEqual([]);
+    });
+  }
+
+  it('refuses a bare hostname that resolves to our own database host', async () => {
+    const res = await importUrl('localhost/');
 
     expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('dns_failed');
+    expect(res.body.error.code).toBe('blocked_address');
     expect(requested).toEqual([]);
   });
 
-  it('refuses a gopher: URL aimed at a local service', async () => {
-    const res = await importUrl('gopher://127.0.0.1:6379/_INFO');
-
-    expect(res.status).toBe(400);
-    expect(['bad_protocol', 'blocked_address', 'dns_failed', 'invalid_url']).toContain(
-      res.body.error.code,
-    );
-    expect(requested).toEqual([]);
-  });
-
-  it('refuses a bare host:port pointing at our own database', async () => {
-    // Normalisation makes this `https://localhost:27017/`, which is exactly the
-    // case the address rules exist for.
+  /**
+   * The one input where the scheme rule and the SSRF guard have to cooperate.
+   * If `localhost:27017` is misread as the protocol `localhost:` it is refused
+   * as `bad_protocol` and the address rules never run at all — a refusal that
+   * happens to be right today and tells us nothing about the guard. Asserting
+   * `blocked_address` specifically is what proves both halves worked.
+   */
+  it('normalises a bare host:port and then blocks it on the address, not the scheme', async () => {
     const res = await importUrl('localhost:27017/');
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('blocked_address');
     expect(requested).toEqual([]);
+  });
+
+  it('blocks a bare metadata address carrying a port', async () => {
+    const res = await importUrl('169.254.169.254:80/latest/meta-data/');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('blocked_address');
+    expect(requested).toEqual([]);
+  });
+
+  it('imports a bare domain carrying an explicit port (W6-3)', async () => {
+    stubFetch(() => htmlResponse(recipePage()));
+
+    const res = await importUrl(`${HOST}:8080/lemon-rice`);
+
+    expect(res.status).toBe(200);
+    // Normalised to https, port intact — not read as the scheme `cooking.example.net:`.
+    expect(requested).toEqual([`https://${HOST}:8080/lemon-rice`]);
+    expect(res.body.sourceUrl).toBe(`https://${HOST}:8080/lemon-rice`);
+  });
+
+  it('still imports the same host:port when the scheme is written out', async () => {
+    stubFetch(() => htmlResponse(recipePage()));
+
+    const res = await importUrl(`https://${HOST}:8443/lemon-rice`);
+
+    expect(res.status).toBe(200);
+    expect(requested).toEqual([`https://${HOST}:8443/lemon-rice`]);
+  });
+
+  it('leaves an http:// URL with a port alone rather than re-prefixing it', async () => {
+    stubFetch(() => htmlResponse(recipePage()));
+
+    const res = await importUrl(`http://${HOST}:8080/lemon-rice`);
+
+    expect(res.status).toBe(200);
+    expect(requested).toEqual([`http://${HOST}:8080/lemon-rice`]);
   });
 
   it('refuses a bare cloud-metadata address', async () => {

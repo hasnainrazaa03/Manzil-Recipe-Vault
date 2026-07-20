@@ -209,6 +209,16 @@ describe('concurrent comments', () => {
     expect(await expectCounterMatchesCollection(recipe.id)).toBe(2);
   });
 
+  /**
+   * This was intermittently failing, at roughly one run in six.
+   *
+   * The counter was recomputed with `countDocuments` and then `$set` — a read
+   * followed by a write, which interleaves: a delete counts 1, an add counts 2
+   * and writes 2, then the delete writes its stale 1, leaving two comments and
+   * a counter saying one. It is the same race the ratings path was rewritten to
+   * remove, reintroduced by recomputing rather than adjusting. The counter now
+   * moves by a known delta with `$inc`.
+   */
   it('recounts correctly when a delete races an add', async () => {
     const recipe = await createRecipe({ author: OWNER });
     const created = await api()
@@ -284,6 +294,72 @@ describe('concurrent comments', () => {
     // The un-migrated array is left exactly where it was — the migration, not a
     // request path, is what moves it.
     expect(await Recipe.findById(recipe.id).lean().then((r) => r!.comments)).toHaveLength(2);
+  });
+});
+
+describe('the comment counter under heavier contention', () => {
+  /**
+   * Three adds against one delete, repeated.
+   *
+   * The single-pair version of this caught the stale write only about one run
+   * in six — often enough to be a real bug, rarely enough to look like a flake.
+   * Widening the contention makes the window far easier to hit, so a regression
+   * fails loudly rather than occasionally.
+   */
+  it('never drifts when a delete races several adds', async () => {
+    for (let round = 0; round < 5; round += 1) {
+      const recipe = await createRecipe({ author: OWNER });
+      const seed = await api()
+        .post(`/api/recipes/${recipe.id}/comments`)
+        .set(authHeader('deleter', 'd@example.com'))
+        .send({ text: 'going away' });
+
+      await Promise.all([
+        api()
+          .delete(`/api/recipes/${recipe.id}/comments/${seed.body._id}`)
+          .set(authHeader('deleter', 'd@example.com')),
+        ...['a', 'b', 'c'].map((who) =>
+          api()
+            .post(`/api/recipes/${recipe.id}/comments`)
+            .set(authHeader(who, `${who}@example.com`))
+            .send({ text: `from ${who}` }),
+        ),
+      ]);
+
+      await expectCounterMatchesCollection(recipe.id);
+    }
+  });
+
+  it('never lets the counter go negative, however deletes interleave', async () => {
+    const recipe = await createRecipe({ author: OWNER });
+    const authors = ['a', 'b', 'c'];
+    const created = await Promise.all(
+      authors.map((who) =>
+        api()
+          .post(`/api/recipes/${recipe.id}/comments`)
+          .set(authHeader(who, `${who}@example.com`))
+          .send({ text: `from ${who}` }),
+      ),
+    );
+
+    // Every author deletes at once, and two of them try twice — a second
+    // delete matches nothing, so it must not move the counter.
+    await Promise.all([
+      ...created.map((res, index) =>
+        api()
+          .delete(`/api/recipes/${recipe.id}/comments/${res.body._id}`)
+          .set(authHeader(authors[index]!, 'x@example.com')),
+      ),
+      ...created.slice(0, 2).map((res, index) =>
+        api()
+          .delete(`/api/recipes/${recipe.id}/comments/${res.body._id}`)
+          .set(authHeader(authors[index]!, 'x@example.com')),
+      ),
+    ]);
+
+    const stored = await Recipe.findById(recipe.id).lean();
+    expect(stored!.commentCount).toBeGreaterThanOrEqual(0);
+    await expectCounterMatchesCollection(recipe.id);
   });
 });
 

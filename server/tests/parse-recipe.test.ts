@@ -154,16 +154,30 @@ describe('parseRecipeFromHtml — the three JSON-LD shapes', () => {
     expect(parseRecipeFromHtml(page(recipeNode), SOURCE)?.title).toBe('Chana Chaat');
   });
 
-  // W6-1: a top-level JSON-LD array is never searched. See tests/FINDINGS-WAVE5.md.
-  it.skip('finds a Recipe inside a bare array', () => {
+  // W6-1, fixed: `findRecipeNode` recurses into an entry that is itself an array.
+  it('finds a Recipe inside a bare array', () => {
     const html = page([{ '@type': 'Organization', name: 'Someone' }, recipeNode]);
     expect(parseRecipeFromHtml(html, SOURCE)?.title).toBe('Chana Chaat');
   });
 
-  it('currently misses a Recipe in a top-level array (W6-1, documenting the bug)', () => {
-    // Pinned so the day `findRecipeNode` learns to descend into a nested array
-    // this fails and the skipped test above can be turned back on.
-    const html = page([{ '@type': 'Organization', name: 'Someone' }, recipeNode]);
+  it('finds a Recipe in a single-element array, the shape most sites ship', () => {
+    expect(parseRecipeFromHtml(page([recipeNode]), SOURCE)?.title).toBe('Chana Chaat');
+  });
+
+  it('finds a Recipe nested two arrays deep', () => {
+    // The path the W6-1 fix actually turns on: the outer array is recursed
+    // into, and the recursion has to handle finding another array there.
+    expect(parseRecipeFromHtml(page([[recipeNode]]), SOURCE)?.title).toBe('Chana Chaat');
+  });
+
+  it('finds a Recipe in an array nested inside @graph', () => {
+    const html = page({ '@context': 'https://schema.org', '@graph': [[recipeNode]] });
+    expect(parseRecipeFromHtml(html, SOURCE)?.title).toBe('Chana Chaat');
+  });
+
+  it('still returns null for an array that contains no Recipe', () => {
+    // The array recursion must not turn "nothing here" into a false positive.
+    const html = page([{ '@type': 'Organization' }, [{ '@type': 'Article', name: 'x' }]]);
     expect(parseRecipeFromHtml(html, SOURCE)).toBeNull();
   });
 
@@ -500,9 +514,31 @@ describe('parseServings', () => {
     expect(parseServings({ '@type': 'QuantitativeValue', '@value': '12' })).toBe(12);
   });
 
-  // W6-2: `QuantitativeValue.value` is not one of the keys `firstString` looks at.
-  it.skip('reads a QuantitativeValue wrapper', () => {
+  // W6-2, fixed: `value` joined the unwrap chain and numbers stringify.
+  it('reads a QuantitativeValue wrapper', () => {
     expect(parseServings({ '@type': 'QuantitativeValue', value: '12' })).toBe(12);
+  });
+
+  it('reads a QuantitativeValue whose value is a number, not a string', () => {
+    expect(parseServings({ '@type': 'QuantitativeValue', value: 6, unitText: 'servings' })).toBe(6);
+  });
+
+  it('reads a bare numeric recipeYield', () => {
+    // `"recipeYield": 4` is common and was silently dropping servings.
+    expect(parseServings(4)).toBe(4);
+  });
+
+  it('reads a number inside an array', () => {
+    expect(parseServings([4, '4 servings'])).toBe(4);
+  });
+
+  it('still returns null for a non-finite number', () => {
+    expect(parseServings(Number.NaN)).toBeNull();
+    expect(parseServings(Number.POSITIVE_INFINITY)).toBeNull();
+  });
+
+  it('still returns null for a boolean', () => {
+    expect(parseServings(true)).toBeNull();
   });
 
   const rejected: [string, unknown][] = [
@@ -518,6 +554,26 @@ describe('parseServings', () => {
       expect(parseServings(value)).toBeNull();
     });
   }
+});
+
+describe('parseRecipeFromHtml — servings on a whole page', () => {
+  const yielded = (recipeYield: unknown) =>
+    parseRecipeFromHtml(
+      page({ '@type': 'Recipe', name: 'X', recipeInstructions: 'Do it.', recipeYield }),
+      SOURCE,
+    )?.servings;
+
+  it('reads a bare numeric recipeYield end to end', () => {
+    expect(yielded(4)).toBe(4);
+  });
+
+  it('reads a QuantitativeValue recipeYield end to end', () => {
+    expect(yielded({ '@type': 'QuantitativeValue', value: 6 })).toBe(6);
+  });
+
+  it('leaves servings null when the yield says nothing useful', () => {
+    expect(yielded('lots')).toBeNull();
+  });
 });
 
 describe('parseRecipeFromHtml — timings', () => {

@@ -550,11 +550,22 @@ router.delete(
  * query per card.
  */
 
-/** Recomputes the counter from the collection, in one round trip. */
-async function syncCommentCount(recipeId: string): Promise<number> {
-  const total = await Comment.countDocuments({ recipe: recipeId });
-  await Recipe.updateOne({ _id: recipeId }, { $set: { commentCount: total } });
-  return total;
+/**
+ * Moves the denormalised comment counter by a known delta.
+ *
+ * Deliberately `$inc` and not "count, then set". Recomputing is a read followed
+ * by a write, and two of them interleave: a delete counts 1, an add counts 2 and
+ * writes 2, then the delete writes its stale 1 — leaving two comments and a
+ * counter saying one. That is the same race the ratings path was rewritten to
+ * remove, reintroduced here by recomputing instead of adjusting.
+ *
+ * `$inc` is safe because the counter has a real starting value on every
+ * document: new recipes default to 0, and `npm run migrate:comments` populates
+ * it for anything written before comments moved out of the recipe.
+ */
+async function adjustCommentCount(recipeId: string, delta: number): Promise<void> {
+  if (delta === 0) return;
+  await Recipe.updateOne({ _id: recipeId }, { $inc: { commentCount: delta } });
 }
 
 /** GET /api/recipes/:id/comments — top-level comments, newest first, with replies. */
@@ -639,7 +650,7 @@ router.post(
       parent: parent ?? null,
     });
 
-    await syncCommentCount(id);
+    await adjustCommentCount(id, 1);
 
     res.status(201).json({ ...comment.toJSON(), replies: [] });
   }),
@@ -689,10 +700,13 @@ router.delete(
     if (!canDelete) throw forbidden('You cannot delete this comment');
 
     // Deleting a parent takes its replies with it; leaving them orphaned would
-    // strand answers to a question nobody can see.
-    await Comment.deleteMany({ $or: [{ _id: commentId }, { parent: commentId }] });
+    // strand answers to a question nobody can see. The number actually removed
+    // is the delta — deriving it from the write means it cannot disagree with
+    // what happened.
+    const removed = await Comment.deleteMany({ $or: [{ _id: commentId }, { parent: commentId }] });
+    await adjustCommentCount(id, -removed.deletedCount);
 
-    const commentCount = await syncCommentCount(id);
+    const commentCount = await Comment.countDocuments({ recipe: id });
 
     res.json({ success: true, commentCount });
   }),

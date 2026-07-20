@@ -216,24 +216,54 @@ router.post(
     const byId = new Map(recipes.map((recipe) => [String(recipe._id), recipe]));
 
     const now = Date.now();
-    const items = entries.flatMap((entry) => {
+
+    /**
+     * Sum the scale factors per recipe *before* building any item.
+     *
+     * The obvious shape — one set of items per planned meal, merged afterwards —
+     * is wrong, and quietly so. Item ids are derived from the recipe and the
+     * ingredient's position, so the same recipe planned twice in a week collides
+     * with itself, and `mergeItems` resolves a collision by taking the more
+     * recent amount rather than adding. A recipe for 4 planned on Monday for 4
+     * and again on Tuesday for 8 produced "400 g" of rice where 600 g is needed:
+     * confident, wrong, and short by exactly one meal.
+     *
+     * Adding the factors first means one line carrying the true total, which is
+     * what "one line, not two" was always supposed to mean.
+     */
+    const factorByRecipe = new Map<string, number>();
+
+    for (const entry of entries) {
       const recipe = byId.get(String(entry.recipe));
-      if (!recipe) return [];
+      if (!recipe) continue;
 
       const base = recipe.servings ?? 0;
       const wanted = entry.servings ?? base;
+      // A recipe with no stated yield cannot be scaled, so each meal counts once.
       const factor = base > 0 && wanted > 0 ? wanted / base : 1;
+
+      factorByRecipe.set(
+        String(entry.recipe),
+        (factorByRecipe.get(String(entry.recipe)) ?? 0) + factor,
+      );
+    }
+
+    const items = [...factorByRecipe.entries()].flatMap(([recipeId, factor]) => {
+      const recipe = byId.get(recipeId);
+      if (!recipe) return [];
 
       return recipe.ingredients
         .filter((ingredient) => (ingredient.name ?? '').trim() !== '')
         .map((ingredient, index) => ({
-          // Deterministic, so re-running the same week merges rather than
-          // duplicating — and so the same recipe planned twice in a week
-          // contributes one line, not two.
-          id: `${String(recipe._id)}-${index}`,
+          // Deterministic, so re-running the same week updates the line rather
+          // than duplicating it.
+          id: `${recipeId}-${index}`,
+          // An amount the parser cannot read ("a pinch") comes back unchanged,
+          // which is the right answer for a pinch and an accepted limitation
+          // for anything else — better than inventing a number.
           amount: scaleAmount(ingredient.amount ?? '', factor),
           name: ingredient.name ?? '',
-          recipeId: String(recipe._id),
+          recipeId,
           recipeTitle: recipe.title,
           checked: false,
           addedAt: now,
@@ -241,7 +271,7 @@ router.post(
     });
 
     const list = await ShoppingList.findOne({ user: user.uid }).lean();
-    const merged = mergeItems(list?.items ?? [], items as never);
+    const { items: merged, dropped } = mergeItems(list?.items ?? [], items as never);
 
     const saved = await ShoppingList.findOneAndUpdate(
       { user: user.uid },
@@ -249,7 +279,16 @@ router.post(
       { new: true, upsert: true },
     ).lean();
 
-    res.json({ items: saved?.items ?? [], added: items.length, meals: entries.length });
+    res.json({
+      items: saved?.items ?? [],
+      // Lines actually written, not contributions counted before merging — the
+      // latter read "4" when two lines were added and made a silent truncation
+      // look like a success.
+      added: items.length,
+      meals: entries.length,
+      recipes: factorByRecipe.size,
+      dropped,
+    });
   }),
 );
 

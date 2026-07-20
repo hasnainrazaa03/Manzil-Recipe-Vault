@@ -46,8 +46,11 @@ export function publicRecipe(recipe: Doc): Doc {
      * what `npm run migrate:author-names` is for; it populates the stored
      * counter from `comments` directly in the database.
      */
-    commentCount:
-      rest.commentCount ?? (Array.isArray(comments) ? comments.length : 0),
+    commentCount: Math.max(
+      0,
+      (rest.commentCount as number | undefined) ??
+        (Array.isArray(comments) ? comments.length : 0),
+    ),
     ratingCount: rest.ratingCount ?? 0,
     averageRating: rest.averageRating ?? 0,
 

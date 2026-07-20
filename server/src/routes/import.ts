@@ -32,8 +32,22 @@ router.post(
   asyncHandler(async (req, res) => {
     const { url } = req.body as { url: string };
 
-    // Accept a bare domain the way a browser address bar would.
-    const normalised = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    /**
+     * Accept a bare domain the way a browser address bar would — but only when
+     * there is no scheme at all. Prepending `https://` to `file:///etc/passwd`
+     * produced `https://file:///etc/passwd`, which was still refused, but as a
+     * DNS failure rather than as the bad protocol it actually is. The caller
+     * deserves the real reason.
+     */
+    /**
+     * The negative lookahead is what distinguishes a scheme from a host and
+     * port: a scheme may legally contain dots, so `cooking.example.net:8080`
+     * matched a naive scheme pattern and was reported as an unsupported
+     * protocol — about a perfectly ordinary https link. A colon followed by
+     * digits is a port; anything else is a scheme.
+     */
+    const hasScheme = /^[a-z][a-z0-9+.-]*:(?!\d)/i.test(url);
+    const normalised = hasScheme ? url : `https://${url}`;
 
     const { html, finalUrl } = await fetchPublicPage(normalised);
     const recipe = parseRecipeFromHtml(html, finalUrl);

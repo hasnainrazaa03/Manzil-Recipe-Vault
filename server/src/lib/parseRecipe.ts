@@ -37,6 +37,10 @@ const isObject = (value: unknown): value is Json =>
 /** schema.org lets almost every field be a value, an object, or an array. */
 function firstString(value: unknown): string {
   if (typeof value === 'string') return value;
+  // JSON-LD is not consistently stringly typed: `recipeYield` is often the
+  // number 4, and a QuantitativeValue's `value` almost always is. Returning ''
+  // for those quietly discarded the field.
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   if (Array.isArray(value)) {
     for (const entry of value) {
       const found = firstString(entry);
@@ -45,8 +49,9 @@ function firstString(value: unknown): string {
     return '';
   }
   if (isObject(value)) {
-    // Common shapes: {"@value": "..."}, {"name": "..."}, {"url": "..."}
-    return firstString(value['@value'] ?? value.name ?? value.url ?? value.text);
+    // Common shapes: {"@value": …}, {"name": …}, {"url": …}, {"text": …}, and
+    // QuantitativeValue's {"value": 4}, which recipeYield often uses.
+    return firstString(value['@value'] ?? value.value ?? value.name ?? value.url ?? value.text);
   }
   return '';
 }
@@ -68,6 +73,16 @@ function findRecipeNode(value: unknown, depth = 0): Json | null {
   if (depth > 6) return null;
 
   for (const entry of toArray(value)) {
+    // A block can itself be an array — `[{...Recipe}]` is a perfectly common
+    // shape. Skipping non-objects discarded those before the recursion below
+    // ever ran, so the recipe was never found and the import reported that the
+    // page had none.
+    if (Array.isArray(entry)) {
+      const found = findRecipeNode(entry, depth + 1);
+      if (found) return found;
+      continue;
+    }
+
     if (!isObject(entry)) continue;
     if (hasType(entry, 'recipe')) return entry;
 

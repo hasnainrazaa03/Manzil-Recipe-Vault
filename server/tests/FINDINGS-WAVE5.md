@@ -135,27 +135,44 @@ resolution.
 
 ---
 
-# Wave 6
+# Wave 6 test findings
 
-Findings from the recipe-import test pass (`tests/safe-fetch.test.ts`,
-`tests/parse-recipe.test.ts`, `tests/import.test.ts`).
+From the recipe-import test pass: `tests/safe-fetch.test.ts` (68),
+`tests/parse-recipe.test.ts` (110), `tests/import.test.ts` (36).
 
-**Open:** W6-1, W6-2. Neither is a security issue — the SSRF guard in
-`src/lib/safeFetch.ts` refused every bypass attempted against it, including all
-the mapped-IPv6 and redirect cases. Both are parsing gaps that make the importer
-quietly give up on pages it could read.
+**Open:** none.
 
-## W6-1 — A Recipe inside a top-level JSON-LD array is never found  `[OPEN]`
+**The SSRF guard held.** Nothing reached a private address. Every documented
+bypass was tried and refused with the right code: cloud metadata by address and
+as `::ffff:169.254.169.254`, loopback in ten spellings (including
+`[0:0:0:0:0:ffff:7f00:1]`, `[::127.0.0.1]` and the decimal `2130706433`),
+private and reserved v4, IPv6 ULA/link-local/multicast/NAT64, a public host
+whose A record is loopback, a public host answering with one public *and* one
+private address, and every redirect case — 302 to loopback, 302 to metadata,
+redirect to `file:`, a protocol-relative `//127.0.0.1`, and a second hop whose
+DNS answer is private. In each redirect case the stub recorded exactly one
+outbound request, so the block happened before the second hop, not after it.
 
-**Severity:** medium — no data loss and nothing unsafe, but a common real-world
-page shape imports as "no recipe found" and the user retypes it by hand, which
+---
+
+# Resolved
+
+## W6-1 — A Recipe inside a top-level JSON-LD array was never found  `[FIXED]`
+
+**Severity:** medium — nothing unsafe and no data loss, but a common real-world
+page shape imported as "no recipe found" and the user retyped it by hand, which
 is the exact outcome the feature exists to prevent.
 
 **Where:** `src/lib/parseRecipe.ts`, `findRecipeNode`.
 
-**Test:** `tests/parse-recipe.test.ts`, `'finds a Recipe inside a bare array'`
-(`.skip`ped). The test immediately after it pins the current behaviour, so when
-this is fixed that one fails and points here.
+**Status:** fixed in `src/lib/parseRecipe.ts`; the tests are live and unskipped
+in `tests/parse-recipe.test.ts`:
+
+- `'finds a Recipe inside a bare array'`
+- `'finds a Recipe in a single-element array, the shape most sites ship'`
+- `'finds a Recipe nested two arrays deep'`
+- `'finds a Recipe in an array nested inside @graph'`
+- `'still returns null for an array that contains no Recipe'`
 
 ### Cause
 
@@ -167,61 +184,137 @@ Plenty of sites ship a single block containing an array:
 </script>
 ```
 
-`jsonLdBlocks` parses that into one element — an array — and hands the list of
-blocks to `findRecipeNode`. The loop there does:
+`jsonLdBlocks` parsed that into one element — an array — and handed the list of
+blocks to `findRecipeNode`, whose loop began `if (!isObject(entry)) continue;`.
+`isObject` excludes arrays, so a block that *was* an array was discarded before
+anything inside it was looked at, and the `@graph`/`mainEntity` recursion never
+fired either because those are read off the entry that had already been skipped.
 
-```ts
-for (const entry of toArray(value)) {
-  if (!isObject(entry)) continue;   // <-- an array is not an object here
-  ...
-}
-```
+The same recipe split across two separate `<script>` blocks *was* found, which
+is why this was easy to miss: only the single-block-array shape failed.
 
-`isObject` explicitly excludes arrays (`!Array.isArray(value)`), so a block that
-*is* an array is skipped before anything inside it is looked at. The `@graph`
-and `mainEntity` recursion never fires either, because those are read off
-`entry`, which was already discarded.
+### Fix
 
-The same recipe split across two separate `<script>` blocks *is* found, which is
-why this is easy to miss: only the single-block-array shape fails.
+`findRecipeNode` now recurses into an entry that is itself an array, before the
+`isObject` guard. The existing depth cap of 6 still bounds it, and the
+no-Recipe-anywhere case still returns null rather than a false positive.
 
-### Suggested fix
+---
 
-Recurse into arrays rather than skipping them — e.g. in the loop, when
-`Array.isArray(entry)`, call `findRecipeNode(entry, depth + 1)` before the
-`isObject` guard. The existing depth cap of 6 still bounds it.
+## W6-2 — Numeric `recipeYield` silently dropped the servings  `[FIXED]`
 
-## W6-2 — `QuantitativeValue.value` is not read  `[OPEN]`
-
-**Severity:** low — one optional field (`servings`) is dropped on the minority of
-sites that use this shape. Nothing else is affected.
+**Severity:** low — one optional field, but on more sites than the original
+write-up suggested.
 
 **Where:** `src/lib/parseRecipe.ts`, `firstString`.
 
-**Test:** `tests/parse-recipe.test.ts`, `'reads a QuantitativeValue wrapper'`
-(`.skip`ped).
+**Status:** fixed. Live tests in `tests/parse-recipe.test.ts`:
+
+- `'reads a QuantitativeValue wrapper'`
+- `'reads a QuantitativeValue whose value is a number, not a string'`
+- `'reads a bare numeric recipeYield'`
+- `'reads a number inside an array'`
+- `'still returns null for a non-finite number'` / `'... for a boolean'`
+- `'reads a bare numeric recipeYield end to end'` and the QuantitativeValue
+  equivalent, through `parseRecipeFromHtml`
 
 ### Cause
 
-`firstString` unwraps objects by trying `@value`, `name`, `url` and `text`.
-schema.org's `QuantitativeValue` — a legal `recipeYield` — carries the number in
-`value`:
+Reported as "`firstString` does not unwrap `QuantitativeValue.value`", which was
+true but one layer short of the real problem. `value` is normally the *number*
+`6`, and `firstString` returned `''` for every non-string input — so adding
+`value` to the unwrap chain alone would have changed nothing. The same gap ate
+the far more common `"recipeYield": 4`, a bare JSON number, on any site that
+emits one.
 
-```json
-"recipeYield": { "@type": "QuantitativeValue", "value": "12", "unitText": "servings" }
-```
+Worth remembering as a shape: a fix aimed at the reported symptom would have
+left the bigger case broken and looked correct while doing it.
 
-so `parseServings` sees an empty string and returns `null`. Adding `value` to
-the chain in `firstString` would cover it.
+### Fix
 
-## Not a bug, but worth writing down
+`firstString` now stringifies finite numbers, and `value` joined the unwrap
+chain. Non-finite numbers and booleans still yield null.
 
-`POST /api/import` normalises anything without an `http(s)://` prefix by
-prepending `https://`. A `file:` or `gopher:` URL therefore never reaches the
-`bad_protocol` check in `fetchPublicPage` — `file:///etc/passwd` becomes
-`https://file:///etc/passwd` and is refused as `dns_failed` instead. The refusal
-is correct and the normalisation is not bypassable (`localhost:27017`,
-`169.254.169.254/latest/meta-data/` and `https://host@127.0.0.1/` all still land
-on `blocked_address`), but the code the client sees is not the one the URL
-suggests. `tests/import.test.ts` asserts the actual codes so a change here is
-visible.
+---
+
+## W6-3 — A bare `host:port` with no scheme was refused as `bad_protocol`  `[FIXED]`
+
+**Severity:** cosmetic — nothing unsafe; an ordinary input got a confusing and
+actively wrong message.
+
+**Where:** `src/routes/import.ts`, the bare-domain normalisation.
+
+**Status:** fixed in `src/routes/import.ts`. Live tests in
+`tests/import.test.ts`:
+
+- `'imports a bare domain carrying an explicit port (W6-3)'`
+- `'normalises a bare host:port and then blocks it on the address, not the scheme'`
+- `'blocks a bare metadata address carrying a port'`
+- `'still imports the same host:port when the scheme is written out'`
+- `'leaves an http:// URL with a port alone rather than re-prefixing it'`
+- the `bad_protocol` loop over `file://`, `gopher://`, `data:`, `mailto:` and
+  `javascript:`
+
+### Cause
+
+Found while pinning the fix for the earlier `file://` behaviour, which had
+replaced "prepend `https://` unless it starts with `http(s)://`" with "prepend
+unless it has a scheme". The scheme test was `/^[a-z][a-z0-9+.-]*:/i`, and a
+scheme may legally contain dots — so `cooking.example.net:8080/recipe` matched
+it, was left alone, and `new URL` read the protocol as
+`cooking.example.net:`. The user was told "only http and https links can be
+imported" about a perfectly ordinary https link.
+
+### Fix
+
+A negative lookahead: `/^[a-z][a-z0-9+.-]*:(?!\d)/i`. A colon followed by digits
+is a port, anything else is a scheme.
+
+The case that ties the two halves of the import guard together is
+`localhost:27017`. Read as a scheme it is refused as `bad_protocol` and the
+address rules never run — a refusal that is right by accident and proves nothing
+about the SSRF guard, which is exactly the failure mode this file keeps finding.
+Read as a host and port it normalises to `https://localhost:27017` and is
+refused as `blocked_address`, for the reason that is supposed to refuse it. The
+test asserts that specific code for that reason.
+
+---
+
+# A pattern worth naming: the test that passes while testing nothing
+
+The coordinator's count puts this pass's near-miss at the third time in this
+project that a test has passed while testing nothing. It is worth naming as a
+pattern rather than filed as one more mistake.
+
+The XSS fixture in `tests/parse-recipe.test.ts` originally embedded its payload
+with `JSON.stringify`, which does not escape `<`. The literal `</script>` inside
+the JSON-LD closed the `<script>` block early, the extraction regex captured
+truncated JSON, `JSON.parse` threw, the block was discarded, and
+`parseRecipeFromHtml` returned null. The assertion "the output contains no
+`<script>`" passed — against a parser that had never seen the payload.
+
+It was caught only because a *different* assertion in the same block ("the title
+is `Cake`") failed on a null result. Had the file asserted only the negative, it
+would have been green and worthless. The helper now escapes `<` as `\u003c`,
+which is what any serialiser emitting JSON into a `<script>` does.
+
+`tests/safe-fetch.test.ts` had the same failure mode waiting in it, and it is
+the more dangerous one because the subject is a security control. A redirect
+test that starts from a hostname needing real DNS "passes" when DNS is simply
+unavailable, because every request then fails for an unrelated reason. Four
+things keep that file honest:
+
+- DNS is mocked **only** for the public hostnames the tests invent; `localhost`
+  and the decimal `2130706433` go to the real resolver, so those cases exercise
+  the guard rather than the stub.
+- `globalThis.fetch` is replaced by a stub that **throws** by default, so an
+  outbound request during a should-be-blocked case fails loudly instead of
+  quietly returning something plausible.
+- Every refusal asserts the specific `AppError.code`, never just "it threw".
+- Positive controls sit in the same file — a stubbed public URL that returns
+  HTML and succeeds, and addresses just outside each blocked range — so a guard
+  that refused *everything* could not satisfy the suite.
+
+The rule that generalises: **a negative assertion needs a positive control next
+to it.** If a test proves something is absent, something nearby has to prove the
+thing that would have contained it was really there.

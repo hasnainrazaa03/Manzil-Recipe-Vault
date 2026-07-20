@@ -36,7 +36,13 @@ const mergeBody = z.object({ items: z.array(item).max(LIMITS.shoppingItems) }).s
  * ticked, because un-ticking something you already bought is a smaller
  * annoyance than buying it twice.
  */
-export function mergeItems(stored: ShoppingItem[], incoming: ShoppingItem[]): ShoppingItem[] {
+export interface MergeResult {
+  items: ShoppingItem[];
+  /** How many items could not be kept because the list is full. */
+  dropped: number;
+}
+
+export function mergeItems(stored: ShoppingItem[], incoming: ShoppingItem[]): MergeResult {
   const merged = new Map<string, ShoppingItem>();
 
   for (const existing of stored) merged.set(existing.id, existing);
@@ -59,9 +65,46 @@ export function mergeItems(stored: ShoppingItem[], incoming: ShoppingItem[]): Sh
     });
   }
 
-  return [...merged.values()]
-    .sort((a, b) => a.addedAt - b.addedAt)
-    .slice(0, LIMITS.shoppingItems);
+  const all = [...merged.values()].sort((a, b) => a.addedAt - b.addedAt);
+
+  if (all.length <= LIMITS.shoppingItems) return { items: all, dropped: 0 };
+
+  /**
+   * Over the cap, so something has to go — but *what* goes matters.
+   *
+   * Sorting oldest-first and truncating meant the items dropped were always the
+   * newest, which is always exactly the ones just added. Generating a week's
+   * shopping list against a full list therefore reported success and added
+   * nothing, and re-running never helped because the ids are stable.
+   *
+   * Already-ticked items are the ones the reader has finished with, so those go
+   * first. Only if that is not enough does anything still needed go, and the
+   * caller is told how many so it can say so rather than pretend.
+   */
+  const unchecked = all.filter((item) => !item.checked);
+  const checked = all.filter((item) => item.checked);
+
+  const kept = unchecked.slice(-LIMITS.shoppingItems);
+  const room = LIMITS.shoppingItems - kept.length;
+
+  /**
+   * Indexed from the front, not with a negative offset.
+   *
+   * `checked.slice(-room)` reads as "the last `room` items", and is — until
+   * `room` is 0, because `-0 === 0` and `slice(0)` returns the *entire* array.
+   * The cap was then breached by exactly the number of ticked items, without
+   * bound, so a list whose owner kept ticking things off grew forever — while
+   * `dropped` confidently reported a truncation that had not happened.
+   */
+  const keptChecked = checked.slice(checked.length - room);
+  const items = [...keptChecked, ...kept].sort((a, b) => a.addedAt - b.addedAt);
+
+  return {
+    items,
+    // Derived from what actually survived rather than computed independently,
+    // so the count cannot disagree with the array it describes.
+    dropped: all.length - items.length,
+  };
 }
 
 /** GET /api/shopping-list */
@@ -118,7 +161,7 @@ router.post(
     const { items } = req.body as { items: ShoppingItem[] };
 
     const existing = await ShoppingList.findOne({ user: user.uid }).lean();
-    const merged = mergeItems(existing?.items ?? [], items);
+    const { items: merged, dropped } = mergeItems(existing?.items ?? [], items);
 
     const list = await ShoppingList.findOneAndUpdate(
       { user: user.uid },
@@ -126,7 +169,7 @@ router.post(
       { new: true, upsert: true },
     ).lean();
 
-    res.json({ items: list?.items ?? [], updatedAt: list?.updatedAt ?? null, merged: true });
+    res.json({ items: list?.items ?? [], updatedAt: list?.updatedAt ?? null, merged: true, dropped });
   }),
 );
 

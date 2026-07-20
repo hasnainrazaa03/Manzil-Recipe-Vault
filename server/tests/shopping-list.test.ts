@@ -26,13 +26,15 @@ const ids = (items: { id: string }[]) => items.map((i) => i.id);
 
 describe('mergeItems', () => {
   it('keeps items that exist only on the server', () => {
-    const merged = mergeItems([item({ id: 'a', name: 'server-only' })], []);
-    expect(names(merged)).toEqual(['server-only']);
+    const { items, dropped } = mergeItems([item({ id: 'a', name: 'server-only' })], []);
+    expect(names(items)).toEqual(['server-only']);
+    expect(dropped).toBe(0);
   });
 
   it('keeps items that exist only locally', () => {
-    const merged = mergeItems([], [item({ id: 'b', name: 'local-only' })]);
-    expect(names(merged)).toEqual(['local-only']);
+    const { items, dropped } = mergeItems([], [item({ id: 'b', name: 'local-only' })]);
+    expect(names(items)).toEqual(['local-only']);
+    expect(dropped).toBe(0);
   });
 
   it('never drops anything — the governing rule', () => {
@@ -47,22 +49,23 @@ describe('mergeItems', () => {
       item({ id: 'l2', name: 'local two', addedAt: 35 }),
     ];
 
-    const merged = mergeItems(stored, incoming);
+    const { items, dropped } = mergeItems(stored, incoming);
 
-    expect(ids(merged).sort()).toEqual(['both', 'l1', 'l2', 's1', 's2']);
+    expect(ids(items).sort()).toEqual(['both', 'l1', 'l2', 's1', 's2']);
     // Every id from either side survives, and the shared one is not duplicated.
-    expect(merged.filter((i) => i.id === 'both')).toHaveLength(1);
+    expect(items.filter((i) => i.id === 'both')).toHaveLength(1);
+    expect(dropped).toBe(0);
   });
 
   it('ends up checked if either side had it checked', () => {
     expect(
-      mergeItems([item({ id: 'x', checked: true })], [item({ id: 'x', checked: false })])[0].checked,
+      mergeItems([item({ id: 'x', checked: true })], [item({ id: 'x', checked: false })]).items[0].checked,
     ).toBe(true);
     expect(
-      mergeItems([item({ id: 'x', checked: false })], [item({ id: 'x', checked: true })])[0].checked,
+      mergeItems([item({ id: 'x', checked: false })], [item({ id: 'x', checked: true })]).items[0].checked,
     ).toBe(true);
     expect(
-      mergeItems([item({ id: 'x', checked: false })], [item({ id: 'x', checked: false })])[0].checked,
+      mergeItems([item({ id: 'x', checked: false })], [item({ id: 'x', checked: false })]).items[0].checked,
     ).toBe(false);
   });
 
@@ -71,13 +74,13 @@ describe('mergeItems', () => {
       [item({ id: 'x', amount: 'stored', addedAt: 100 })],
       [item({ id: 'x', amount: 'incoming', addedAt: 200 })],
     );
-    expect(newerIncoming[0].amount).toBe('incoming');
+    expect(newerIncoming.items[0].amount).toBe('incoming');
 
     const newerStored = mergeItems(
       [item({ id: 'x', amount: 'stored', addedAt: 200 })],
       [item({ id: 'x', amount: 'incoming', addedAt: 100 })],
     );
-    expect(newerStored[0].amount).toBe('stored');
+    expect(newerStored.items[0].amount).toBe('stored');
   });
 
   it('takes the incoming amount on an exact tie', () => {
@@ -85,12 +88,12 @@ describe('mergeItems', () => {
       [item({ id: 'x', amount: 'stored', addedAt: 100 })],
       [item({ id: 'x', amount: 'incoming', addedAt: 100 })],
     );
-    expect(merged[0].amount).toBe('incoming');
+    expect(merged.items[0].amount).toBe('incoming');
   });
 
   it('takes the EARLIER addedAt of the two', () => {
-    expect(mergeItems([item({ id: 'x', addedAt: 500 })], [item({ id: 'x', addedAt: 100 })])[0].addedAt).toBe(100);
-    expect(mergeItems([item({ id: 'x', addedAt: 100 })], [item({ id: 'x', addedAt: 500 })])[0].addedAt).toBe(100);
+    expect(mergeItems([item({ id: 'x', addedAt: 500 })], [item({ id: 'x', addedAt: 100 })]).items[0].addedAt).toBe(100);
+    expect(mergeItems([item({ id: 'x', addedAt: 100 })], [item({ id: 'x', addedAt: 500 })]).items[0].addedAt).toBe(100);
   });
 
   it('sorts the result by addedAt', () => {
@@ -98,26 +101,159 @@ describe('mergeItems', () => {
       [item({ id: 'c', addedAt: 300 }), item({ id: 'a', addedAt: 100 })],
       [item({ id: 'b', addedAt: 200 })],
     );
-    expect(ids(merged)).toEqual(['a', 'b', 'c']);
+    expect(ids(merged.items)).toEqual(['a', 'b', 'c']);
   });
 
-  it(`caps the result at ${LIMITS.shoppingItems} items, keeping the earliest`, () => {
+  it(`caps the result at ${LIMITS.shoppingItems} items and reports how many went`, () => {
     const stored = Array.from({ length: LIMITS.shoppingItems }, (_unused, i) =>
       item({ id: `s${i}`, addedAt: 1_000 + i }),
     );
-    const incoming = Array.from({ length: 5 }, (_unused, i) => item({ id: `l${i}`, addedAt: i }));
+    const incoming = Array.from({ length: 5 }, (_unused, i) =>
+      item({ id: `l${i}`, addedAt: 9_000 + i }),
+    );
 
-    const merged = mergeItems(stored, incoming);
+    const { items, dropped } = mergeItems(stored, incoming);
 
-    expect(merged).toHaveLength(LIMITS.shoppingItems);
-    // The five earliest incoming items are at the front; the newest stored ones
-    // fall off the end.
-    expect(ids(merged).slice(0, 5)).toEqual(['l0', 'l1', 'l2', 'l3', 'l4']);
-    expect(ids(merged)).not.toContain(`s${LIMITS.shoppingItems - 1}`);
+    expect(items).toHaveLength(LIMITS.shoppingItems);
+    expect(dropped).toBe(5);
+    // With nothing ticked, what has to go is the oldest — never what was just
+    // added. See tests/FINDINGS-WAVE6.md #2.
+    expect(ids(items).slice(-5)).toEqual(['l0', 'l1', 'l2', 'l3', 'l4']);
+    expect(ids(items)).not.toContain('s0');
+    expect(ids(items)).toContain(`s${LIMITS.shoppingItems - 1}`);
+  });
+
+  it('gives up ticked items before anything still needed', () => {
+    // Half the stored list is already in the basket. Those are the ones the
+    // reader has finished with, so they are what a full list sacrifices first.
+    const stored = Array.from({ length: LIMITS.shoppingItems }, (_unused, i) =>
+      item({ id: `s${i}`, addedAt: 1_000 + i, checked: i % 2 === 0 }),
+    );
+    const incoming = Array.from({ length: 10 }, (_unused, i) =>
+      item({ id: `l${i}`, addedAt: 9_000 + i }),
+    );
+
+    const { items, dropped } = mergeItems(stored, incoming);
+
+    expect(items).toHaveLength(LIMITS.shoppingItems);
+    expect(dropped).toBe(10);
+
+    // Every unticked item survives, ticked ones absorbed the whole loss…
+    const survivors = new Set(ids(items));
+    for (const candidate of [...stored, ...incoming]) {
+      if (!candidate.checked) expect(survivors.has(candidate.id), candidate.id).toBe(true);
+    }
+    expect(items.filter((i) => i.checked)).toHaveLength(
+      stored.filter((i) => i.checked).length - 10,
+    );
+  });
+
+  it('keeps newly added items even when every stored item is ticked', () => {
+    const stored = Array.from({ length: LIMITS.shoppingItems }, (_unused, i) =>
+      item({ id: `s${i}`, addedAt: 1_000 + i, checked: true }),
+    );
+    const incoming = Array.from({ length: 4 }, (_unused, i) =>
+      item({ id: `l${i}`, addedAt: 9_000 + i }),
+    );
+
+    const { items, dropped } = mergeItems(stored, incoming);
+
+    expect(dropped).toBe(4);
+    for (const id of ['l0', 'l1', 'l2', 'l3']) expect(ids(items)).toContain(id);
+  });
+
+  // Was FINDINGS-WAVE6.md #3, introduced by the fix for #2: `room` is 0 here,
+  // and `checked.slice(-0)` was `checked.slice(0)` — the entire array — so the
+  // cap was breached by exactly the number of ticked items, without bound.
+  it('never returns more than the cap, however many items are ticked', () => {
+    const stored = [
+      ...Array.from({ length: LIMITS.shoppingItems }, (_unused, i) =>
+        item({ id: `u${i}`, addedAt: 1_000 + i }),
+      ),
+      ...Array.from({ length: 50 }, (_unused, i) => item({ id: `c${i}`, addedAt: i, checked: true })),
+    ];
+
+    const { items, dropped } = mergeItems(stored, [item({ id: 'new', addedAt: 9_000 })]);
+
+    expect(items).toHaveLength(LIMITS.shoppingItems);
+    expect(ids(items)).toContain('new');
+    expect(dropped).toBe(stored.length + 1 - items.length);
+    // Every ticked item went, and nothing still needed did.
+    expect(items.filter((i) => i.checked)).toHaveLength(0);
+  });
+
+  it('holds the cap at exactly the boundary with nothing ticked at all', () => {
+    // `room` reaches 0 from the other direction: the unticked items fill the
+    // cap on their own and there is not a single ticked item to give up.
+    const stored = Array.from({ length: LIMITS.shoppingItems }, (_unused, i) =>
+      item({ id: `u${i}`, addedAt: 1_000 + i }),
+    );
+
+    const exact = mergeItems(stored, []);
+    expect(exact.items).toHaveLength(LIMITS.shoppingItems);
+    expect(exact.dropped).toBe(0);
+    expect(ids(exact.items)).toContain('u0');
+
+    const overByOne = mergeItems(stored, [item({ id: 'new', addedAt: 9_000 })]);
+    expect(overByOne.items).toHaveLength(LIMITS.shoppingItems);
+    expect(overByOne.dropped).toBe(1);
+    expect(ids(overByOne.items)).toContain('new');
+    expect(ids(overByOne.items)).not.toContain('u0'); // the oldest, and only it
+    expect(ids(overByOne.items)).toContain('u1');
+  });
+
+  it('always reports dropped as the number of distinct ids that did not survive', () => {
+    /**
+     * The invariant, rather than a number per case: whatever the mix, the ids
+     * going in are the ids coming out plus `dropped`. A count computed
+     * independently of the array it describes is what let the cap breach in
+     * FINDINGS-WAVE6.md #3 report a truncation that had not happened.
+     */
+    const unticked = (count: number, from = 0) =>
+      Array.from({ length: count }, (_unused, i) => item({ id: `u${from + i}`, addedAt: 1_000 + from + i }));
+    const ticked = (count: number, from = 0) =>
+      Array.from({ length: count }, (_unused, i) =>
+        item({ id: `c${from + i}`, addedAt: 100 + from + i, checked: true }),
+      );
+
+    const shapes: [string, ShoppingItem[], ShoppingItem[]][] = [
+      ['empty', [], []],
+      ['under the cap', unticked(10), unticked(5, 10)],
+      ['exactly at the cap', unticked(LIMITS.shoppingItems), []],
+      ['at the cap, one added', unticked(LIMITS.shoppingItems), unticked(1, 900)],
+      ['cap of unticked plus two ticked', [...unticked(LIMITS.shoppingItems), ...ticked(2)], unticked(2, 900)],
+      ['cap of unticked plus many ticked', [...unticked(LIMITS.shoppingItems), ...ticked(2_000)], unticked(1, 900)],
+      ['all ticked, over the cap', ticked(LIMITS.shoppingItems + 20), unticked(3, 900)],
+      ['mixed, well over the cap', [...unticked(200), ...ticked(200)], unticked(200, 500)],
+      ['overlapping ids', unticked(LIMITS.shoppingItems), unticked(50)],
+    ];
+
+    for (const [label, stored, incoming] of shapes) {
+      const { items, dropped } = mergeItems(stored, incoming);
+      const distinct = new Set([...stored, ...incoming].map((i) => i.id)).size;
+
+      expect(dropped, `${label}: dropped`).toBe(distinct - items.length);
+      expect(items.length, `${label}: cap`).toBeLessThanOrEqual(LIMITS.shoppingItems);
+      expect(dropped, `${label}: dropped is not negative`).toBeGreaterThanOrEqual(0);
+      expect(new Set(ids(items)).size, `${label}: no duplicates`).toBe(items.length);
+      // Nothing is invented: every survivor came from one of the two inputs.
+      const inputIds = new Set([...stored, ...incoming].map((i) => i.id));
+      for (const id of ids(items)) expect(inputIds.has(id), `${label}: ${id}`).toBe(true);
+    }
+  });
+
+  it('reports dropped: 0 whenever everything fits', () => {
+    const stored = Array.from({ length: LIMITS.shoppingItems - 2 }, (_unused, i) =>
+      item({ id: `s${i}`, addedAt: 1_000 + i }),
+    );
+    const { items, dropped } = mergeItems(stored, [item({ id: 'l0', addedAt: 9_000 })]);
+
+    expect(items).toHaveLength(LIMITS.shoppingItems - 1);
+    expect(dropped).toBe(0);
   });
 
   it('is a no-op on two empty lists', () => {
-    expect(mergeItems([], [])).toEqual([]);
+    expect(mergeItems([], [])).toEqual({ items: [], dropped: 0 });
   });
 });
 
@@ -278,12 +414,17 @@ describe('POST /api/shopping-list/merge', () => {
       .post('/api/shopping-list/merge')
       .set(authHeader(USER))
       .send({
-        items: Array.from({ length: 3 }, (_unused, i) => item({ id: `l${i}`, name: `local ${i}`, addedAt: i })),
+        items: Array.from({ length: 3 }, (_unused, i) =>
+          item({ id: `l${i}`, name: `local ${i}`, addedAt: 9_000 + i }),
+        ),
       });
 
     expect(res.status).toBe(200);
     expect(res.body.items).toHaveLength(LIMITS.shoppingItems);
-    expect(ids(res.body.items).slice(0, 3)).toEqual(['l0', 'l1', 'l2']);
+    expect(res.body.dropped).toBe(3);
+    // The three just merged in are newer than everything stored, so they stay
+    // and the oldest stored items are what go.
+    expect(ids(res.body.items).slice(-3)).toEqual(['l0', 'l1', 'l2']);
   });
 
   it('requires auth', async () => {
