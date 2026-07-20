@@ -272,18 +272,24 @@ header {
   display: inline-flex;
   gap: var(--spacing-1);
   padding: var(--spacing-1);
-  margin-inline: auto;
-  margin-bottom: var(--spacing-6);
   background-color: var(--surface-sunken);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-full);
 }
 
-/* `inline-flex` shrink-wraps, so the element needs a block context to be
-   centred by `margin-inline: auto`. */
+/**
+ * The control shrink-wraps its segments, so the row is what centres it — and
+ * what owns its spacing.
+ *
+ * The margins live here rather than on the control itself so they collapse
+ * against whatever precedes the toggle. Above it sits any of three optional
+ * rails or, when every rail is hidden, the page header; the gap should not
+ * depend on which.
+ */
 .view-toggle-row {
   display: flex;
   justify-content: center;
+  margin-block: var(--spacing-8) var(--spacing-6);
 }
 
 .view-toggle button {
@@ -3809,7 +3815,14 @@ mark {
    ========================================================================== */
 
 .follow-suggestions {
-  margin-top: var(--spacing-8);
+  /**
+   * Symmetric, like the two rails it sits alongside.
+   *
+   * This was the only one of the three home rails with no bottom margin, so
+   * whatever followed it — the collection toggle — sat almost flush against
+   * the bottom edge of the card and read as though it belonged inside it.
+   */
+  margin-block: var(--spacing-8);
   padding: var(--spacing-5) var(--spacing-6);
   background-color: var(--card-background);
   border: 1px solid var(--border-color);

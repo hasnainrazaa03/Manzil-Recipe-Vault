@@ -284,6 +284,7 @@ slowness in the UI/UX".
 |---|---|---|
 | C2 | S3 | **The toggle wobbled when you used it.** The selected segment was set in a heavier weight than the unselected one, so it measured wider, so every click resized both segments and shifted the row — on a control whose whole job is to sit still. Weight is now constant and selection is carried by colour and surface. |
 | C3 | S3 | **Two loose pills, not one control.** Rebuilt as a segmented control on a single recessed track, so the pair reads as one either/or. |
+| C7 | **S2** | **The toggle was touching the card above it.** Measured in Chromium at **0px** between the bottom edge of the "Cooks to follow" card and the top edge of the toggle, at every width — not close, flush, and reading as though the toggle belonged inside the card. `.follow-suggestions` was the only one of the three home rails with a top margin and no bottom margin, and the toggle reserved none of its own. Now 32px. Reported twice before I measured it: the first time I checked segment-to-segment spacing, found it correct, and said I could not reproduce an overlap — while the actual collision was one element up. |
 | C4 | S4 | **It rendered signed out**, where "My recipes" does not exist — a segmented control with one segment is a label pretending to be a choice. It is now not drawn at all. |
 
 ### Fixed — perceived speed
@@ -298,6 +299,20 @@ slowness in the UI/UX".
 - **Client-side data fetching was already right.** `staleTime`, `placeholderData: (previous) => previous` on the list, longer staleness on tags and cuisines, no refetch on focus. Routes are already lazy and Tiptap is already in its own chunk.
 - **The 523 kB main chunk (146 kB gzipped) is React, the router, Query and Firebase.** Splitting it further is exactly what caused the blank-page outage in §4, and the `check-bundle` guard exists because of it. Not touching it for a marginal gain.
 - **The dominant latency is almost certainly the free-tier cold start**, not the code. A Render free instance sleeps after 15 minutes and takes the better part of a minute to answer the first request. No change in this repo fixes that; keeping the instance warm or paying for it does.
+
+### On measuring instead of reasoning
+
+C7 was reported twice before it was fixed. The first time, I checked the spacing
+*between the two segments*, found it correct, and said I could not reproduce an
+overlap — the collision was one element up, between the card and the control.
+Reasoning about a stylesheet is not the same as laying it out.
+
+Chromium is available in this environment via Playwright's cache, so the second
+attempt measured rather than argued: a harness that loads the real
+`tokens/base/components` stylesheets, reproduces the home page's DOM, and reads
+`getBoundingClientRect()` at 1440, 768 and 390 px. It reported `card→toggle: 0px`
+against the committed stylesheet and `32px` after the fix. That took about as
+long as the guesswork did and produced a number rather than an opinion.
 
 ### The pattern this belongs to
 

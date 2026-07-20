@@ -152,6 +152,35 @@ describe('the base layer does not outrank the components layer', () => {
     expect(selected?.[1]).not.toMatch(/font-weight/);
   });
 
+  /**
+   * The three optional rails at the top of the home page must each reserve
+   * space below themselves, because what follows them — the collection toggle —
+   * reserves none of its own against a specific one of them.
+   *
+   * `.follow-suggestions` was the only one of the three with a top margin and
+   * no bottom margin. Measured in Chromium, the toggle's top edge sat **0px**
+   * from the card's bottom edge: not close, touching, and reading as though it
+   * belonged inside the card. The other two rails were fine, which is why it
+   * only showed up for readers who follow nobody.
+   */
+  it('gives every home rail space below it, not just above', () => {
+    const components = stripComments(read('components.css'));
+
+    const RAILS = ['.featured', '.recently-viewed', '.follow-suggestions'];
+
+    for (const rail of RAILS) {
+      const rule = new RegExp(`\\${rail}\\s*\\{([^}]*)\\}`).exec(components);
+      expect(rule, `${rail} has moved or been renamed`).not.toBeNull();
+
+      const body = rule?.[1] ?? '';
+      const reservesSpaceBelow = /margin-bottom\s*:/.test(body) || /margin-block\s*:/.test(body);
+
+      expect(reservesSpaceBelow, `${rail} sets no bottom margin, so whatever follows it sits flush`).toBe(
+        true,
+      );
+    }
+  });
+
   it('parses the stylesheets it is asserting about', () => {
     // A positive control. Both assertions above pass vacuously if the regexes
     // stop matching anything at all — which is precisely what happens if the
