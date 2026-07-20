@@ -21,6 +21,13 @@ export const LIMITS = {
   /** A day. Anything longer is a data-entry mistake, not a slow braise. */
   minutes: 1_440,
   servings: 100,
+  /**
+   * Bounds the recipe document. Comments are embedded, so without a cap one
+   * account posting at the rate limit could push a recipe past MongoDB's 16 MB
+   * ceiling — after which every write to it fails, including its owner's edits
+   * and any attempt to delete the comments causing the problem.
+   */
+  commentsPerRecipe: 500,
 } as const;
 
 export const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;

@@ -128,7 +128,10 @@ Recipe cards used to display the author's email address. They now show a display
 - Errors return `{ error: { code, message, details? } }`. In production the message for an unexpected fault is generic; the detail goes to the logs.
 - Rich text is sanitized on write, not only on render.
 - Email addresses are never included in any public response.
-- Reads, writes, interactions, and upload-signature minting are rate limited separately.
+- Reads, writes, interactions, and upload-signature minting are rate limited separately, and limiting runs *before* authentication so failed sign-ins are metered too.
+- Counters that accompany an array (`ratingCount`, `commentCount`) are derived inside the same atomic update that changes the array, so they cannot drift apart under concurrent writes.
+- Comments are capped at 500 per recipe, which bounds the document well below MongoDB's 16 MB ceiling.
+- Responses are normalised through one serialiser, so a document written before a field existed still honours the published contract.
 
 Full endpoint list: see [`server/src/routes/`](server/src/routes).
 

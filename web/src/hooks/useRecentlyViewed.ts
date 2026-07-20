@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { useLocalStorage } from './useLocalStorage';
+import { useLocalStorageArray } from './useLocalStorage';
 import { STORAGE_KEYS } from '../lib/storage';
 import type { RecipeDetail } from '../types';
 
@@ -12,14 +12,16 @@ export interface RecentRecipe {
 
 const MAX_ENTRIES = 12;
 
-const isRecent = (value: unknown): value is RecentRecipe =>
-  typeof value === 'object' &&
-  value !== null &&
-  typeof (value as RecentRecipe).id === 'string' &&
-  typeof (value as RecentRecipe).title === 'string';
-
-const isRecentList = (value: unknown): value is RecentRecipe[] =>
-  Array.isArray(value) && value.every(isRecent);
+const isRecent = (value: unknown): value is RecentRecipe => {
+  if (typeof value !== 'object' || value === null) return false;
+  const entry = value as Record<string, unknown>;
+  return (
+    typeof entry.id === 'string' &&
+    typeof entry.title === 'string' &&
+    typeof entry.image === 'string' &&
+    typeof entry.viewedAt === 'number'
+  );
+};
 
 /**
  * The last few recipes opened, kept entirely in the browser. No server, no
@@ -27,10 +29,9 @@ const isRecentList = (value: unknown): value is RecentRecipe[] =>
  * it as anything more would mean collecting reading history.
  */
 export function useRecentlyViewed() {
-  const [recent, setRecent] = useLocalStorage<RecentRecipe[]>(
+  const [recent, setRecent] = useLocalStorageArray<RecentRecipe>(
     STORAGE_KEYS.recentlyViewed,
-    [],
-    isRecentList,
+    isRecent,
   );
 
   const record = useCallback(

@@ -544,7 +544,7 @@ describe('GET /api/recipes/:id/related', () => {
     expect(order[0]).toBe('Well rated');
   });
 
-  it('prefers the same cuisine in the fallback', async () => {
+  it('puts the same cuisine first, then tops up from everything else', async () => {
     const subject = await createRecipe({ title: 'Subject', tags: [], cuisine: 'Thai' });
     await createRecipe({ title: 'Also Thai', cuisine: 'Thai', averageRating: 1, ratingCount: 1 });
     await createRecipe({ title: 'Italian', cuisine: 'Italian', averageRating: 5, ratingCount: 9 });
@@ -553,7 +553,43 @@ describe('GET /api/recipes/:id/related', () => {
 
     expect(res.status).toBe(200);
     const order = (res.body as { title: string }[]).map((item) => item.title);
-    expect(order).toEqual(['Also Thai']);
+
+    // Cuisine wins the ranking despite the far better rating on the other one…
+    expect(order[0]).toBe('Also Thai');
+    // …but the rail is still filled rather than left short.
+    expect(order).toContain('Italian');
+  });
+
+  /**
+   * The docstring promises the section is "never empty". It was, for any recipe
+   * whose cuisine nothing else shared: the only fallback was cuisine-restricted.
+   */
+  it('is not empty for a recipe whose cuisine nothing else shares', async () => {
+    const subject = await createRecipe({ title: 'Subject', tags: [], cuisine: 'Faroese' });
+    await createRecipe({ title: 'Something Else', cuisine: 'Italian' });
+
+    const res = await api().get(`/api/recipes/${subject.id}/related`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect((res.body as { title: string }[])[0]!.title).toBe('Something Else');
+  });
+
+  it('returns one consistent shape from both the tag and fallback branches', async () => {
+    const subject = await createRecipe({ title: 'Subject', tags: ['shared'], cuisine: 'Thai' });
+    await createRecipe({ title: 'By tag', tags: ['shared'] });
+    await createRecipe({ title: 'By cuisine', tags: [], cuisine: 'Thai' });
+
+    const res = await api().get(`/api/recipes/${subject.id}/related`);
+    const shapes = (res.body as Record<string, unknown>[]).map((item) => Object.keys(item).sort().join(','));
+
+    expect(new Set(shapes).size).toBe(1);
+    // A rail of cards needs none of these, and the tag branch used to leak them.
+    for (const item of res.body as Record<string, unknown>[]) {
+      expect(item).not.toHaveProperty('ingredients');
+      expect(item).not.toHaveProperty('instructions');
+      expect(item).not.toHaveProperty('__v');
+    }
   });
 
   it('tops a thin tag match up from the fallback rather than returning a short list', async () => {

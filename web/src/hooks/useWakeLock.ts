@@ -26,7 +26,17 @@ export function useWakeLock(active: boolean): boolean {
         }
         lock.current = sentinel;
         setHeld(true);
-        sentinel.addEventListener('release', () => setHeld(false));
+
+        // Clearing the ref here is what makes reacquisition possible. Without
+        // it the ref kept pointing at the dead sentinel, the `!lock.current`
+        // guard below was never satisfied, and the lock was never taken again —
+        // so a single notification during cooking meant the screen slept for
+        // the rest of the recipe, which is the one thing this hook exists to
+        // prevent.
+        sentinel.addEventListener('release', () => {
+          if (lock.current === sentinel) lock.current = null;
+          setHeld(false);
+        });
       } catch {
         setHeld(false);
       }

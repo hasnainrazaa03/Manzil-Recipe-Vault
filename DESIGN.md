@@ -223,11 +223,25 @@ Waves are ordered by value per unit of risk. Within the current pass:
 
 ## 5. Testing commitments
 
+> **Where the second audit found its bugs.** Every finding in `PLAN.md` §5 lived
+> in the part of the client with no tests: `pages/`, `hooks/`, `lib/queries.ts`
+> and the two hand-rolled overlays. The tested modules — the amount parser, the
+> formatters, the storage guards, the presentational components — were clean.
+> That is not a coincidence, and it is the argument for the commitments below.
+
+
 - The amount parser gets exhaustive unit tests, including everything it must refuse to touch.
 - Cook mode step derivation is tested against real instruction HTML, including the degenerate single-paragraph case.
 - The command palette is tested for keyboard operation.
 - `localStorage` persistence is tested for the corrupt-data case — a bad value must not crash the app.
 - New API fields get validation tests in the existing suite.
+- **Anything holding a counter alongside the array it counts gets a concurrency
+  test.** Two writers in parallel, then assert the stored array and the stored
+  count agree. Sequential tests pass happily while the data corrupts.
+- **Anything reading a document gets a legacy-document test**, inserted through
+  the raw driver so no Mongoose default can hide a missing field.
+- **Anything wired to a URL or an effect gets a "does it sit still?" test.**
+  Render it, wait, and assert it has not navigated or refetched on its own.
 
 ---
 

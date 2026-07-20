@@ -20,6 +20,13 @@ import type { Difficulty, RecipeListParams, RecipeSummary, SortOption } from '..
 const SORTS: SortOption[] = ['newest', 'oldest', 'rating', 'popular', 'relevance', 'quickest'];
 const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard'];
 
+/** The query string with `page` removed, for comparing "did a filter change?". */
+function stripPage(params: URLSearchParams): string {
+  const copy = new URLSearchParams(params);
+  copy.delete('page');
+  return copy.toString();
+}
+
 export default function HomePage() {
   const { user } = useAuth();
   const { openCreate, openEdit, confirmDelete } = useRecipeEditor();
@@ -59,13 +66,58 @@ export default function HomePage() {
             if (Array.isArray(value)) value.forEach((item) => next.append(key, item));
             else if (value !== null && value !== '') next.set(key, value);
           }
-          if (!keepPage) next.delete('page');
+
+          // Only a filter that actually changed should send the reader back to
+          // page one. Resetting unconditionally meant any no-op update — and
+          // there was a loop producing several a second — silently discarded
+          // the page they were on.
+          const changed = next.toString() !== stripPage(current);
+          if (!keepPage && changed) next.delete('page');
+
+          // Returning the same params still pushes a history entry, so bail out
+          // rather than navigate to where we already are.
+          if (next.toString() === current.toString()) return current;
+
           return next;
         },
         { replace: true },
       );
     },
     [setSearchParams],
+  );
+
+  /**
+   * Stable identities. These are handed to `SearchFilters`, whose debounce
+   * effect lists them as dependencies — recreating them every render re-armed
+   * that effect every render, which is half of what caused the navigation loop.
+   */
+  const onSearchChange = useCallback(
+    (value: string) => updateParams({ q: value || null }),
+    [updateParams],
+  );
+  const onTagsChange = useCallback(
+    (value: string[]) => updateParams({ tag: value }),
+    [updateParams],
+  );
+  const onTagModeChange = useCallback(
+    (mode: 'any' | 'all') => updateParams({ tagMode: mode === 'any' ? null : mode }),
+    [updateParams],
+  );
+  const onSortChange = useCallback(
+    (value: SortOption) => updateParams({ sort: value === 'newest' ? null : value }),
+    [updateParams],
+  );
+  const onDifficultyChange = useCallback(
+    (value: Difficulty | undefined) => updateParams({ difficulty: value ?? null }),
+    [updateParams],
+  );
+  const onCuisineChange = useCallback(
+    (value: string | undefined) => updateParams({ cuisine: value ?? null }),
+    [updateParams],
+  );
+  const onMaxMinutesChange = useCallback(
+    (value: number | undefined) => updateParams({ maxMinutes: value ? String(value) : null }),
+    [updateParams],
   );
 
   const params = useMemo<RecipeListParams>(
@@ -143,19 +195,19 @@ export default function HomePage() {
 
       <SearchFilters
         search={search}
-        onSearchChange={(value) => updateParams({ q: value || null })}
+        onSearchChange={onSearchChange}
         selectedTags={tags}
-        onTagsChange={(value) => updateParams({ tag: value })}
+        onTagsChange={onTagsChange}
         tagMode={tagMode}
-        onTagModeChange={(mode) => updateParams({ tagMode: mode === 'any' ? null : mode })}
+        onTagModeChange={onTagModeChange}
         sort={sort}
-        onSortChange={(value) => updateParams({ sort: value === 'newest' ? null : value })}
+        onSortChange={onSortChange}
         difficulty={difficulty}
-        onDifficultyChange={(value) => updateParams({ difficulty: value ?? null })}
+        onDifficultyChange={onDifficultyChange}
         cuisine={cuisine}
-        onCuisineChange={(value) => updateParams({ cuisine: value ?? null })}
+        onCuisineChange={onCuisineChange}
         maxMinutes={maxMinutes}
-        onMaxMinutesChange={(value) => updateParams({ maxMinutes: value ? String(value) : null })}
+        onMaxMinutesChange={onMaxMinutesChange}
         resultCount={data?.total}
       />
 

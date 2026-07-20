@@ -202,7 +202,62 @@ Writing the API test suite surfaced four defects in the rewritten server. All fo
 
 ---
 
-## 5. Risks and things I am explicitly not doing
+## 5. Second hardening pass (2026-07-20)
+
+An adversarial re-audit after the feature work: two independent read-only
+reviews of the server and client, plus targeted verification. Everything below
+was **reproduced before being fixed**, and each carries a regression test.
+
+Notably, most of these were introduced by the rewrite itself — the first audit
+found bugs in five-year-old code, this one found bugs in five-day-old code.
+
+### Fixed — data integrity
+
+| # | Sev | Finding |
+|---|---|---|
+| H1 | **S1** | **Concurrent writes silently corrupted counters, permanently.** Ratings and comments used `findById` → mutate → `save()`. Mongoose emits `$push` for the array but a plain `$set` for a counter computed from the writer's stale copy, so two people rating at once left `ratings.length` at 2 and `ratingCount` at 1 — and nothing recomputed it until the next write. Those counters drive `sort=rating`, `sort=popular`, and every star on every card. All such writes are now single atomic updates that derive the counter with `$size` in the same operation, making divergence impossible. |
+| H2 | S2 | **`VersionError` answered as a 500.** The same read-modify-write raised it whenever anyone edited a comment or changed a rating while another user wrote to the same recipe — routine on a popular recipe. The edit was lost and the user saw "Something went wrong". The atomic rewrite removes the cause; the error handler now maps it, and duplicate-key errors, to 409. |
+| H3 | S2 | **Every field added by the last two releases read as `undefined` on older documents.** Mongoose applies defaults on *hydration*, and every list query uses `.lean()`, which skips it. The response types promised `commentCount: number`; the runtime returned nothing, so `commentCount > 0` was false and **every pre-existing recipe showed no comment count at all**. Responses are now normalised through one serialiser, and the migration backfills the stored counters. |
+| H4 | S2 | **Unbounded comment growth.** No cap existed. At the rate limit one account could push a recipe past MongoDB's 16 MB ceiling, after which *every* write to it fails — its owner could no longer edit it, and the offending comments could not be deleted. Capped, with a 409 that says so. |
+
+### Fixed — security and correctness
+
+| # | Sev | Finding |
+|---|---|---|
+| H5 | S2 | **Failed authentication was completely unmetered.** Rate limiters were mounted *after* `requireAuth`, which calls `next(err)` on a bad token and skips the rest of the chain — so the limiter never ran. An unauthenticated attacker could hammer signature minting or recipe creation with garbage tokens at unlimited rate, driving a Firebase verification on each. Limiters now run first. |
+| H6 | S2 | **The query cache was never cleared on sign-out.** On a shared machine, a second person signing in within the cache window saw the first person's display name, their saved recipes starred across the grid, and their saved-recipes page. The cache is now evicted whenever the signed-in identity changes. |
+| H7 | S2 | **An expired session was told it had written nothing.** Firebase tokens expire hourly; `optionalAuth` swallowed the failure and `?author=me` returned an empty list. It now returns 401 and says the session expired. |
+| H8 | S3 | Malformed JSON and oversized bodies returned 500 — logging a client mistake as a server fault. Now 400 and 413. |
+| H9 | S3 | `PUT /api/users/me` silently cleared `bio` and `profilePictureUrl` on a partial body: schema defaults turned an omitted key into `$set: { bio: '' }`. It now merges. |
+| H10 | S4 | The migration used `??` where it needed `||`, so rows whose `authorEmail` was the empty-string default were never backfilled and re-qualified on every run. |
+
+### Fixed — client
+
+| # | Sev | Finding |
+|---|---|---|
+| H11 | **S1** | **A self-sustaining navigation loop on the home page, and pagination was unusable.** `SearchFilters`' debounce effect depended on a callback the page recreated every render; firing it pushed a navigation, which re-rendered the page, which minted a new callback, which re-armed the effect. Measured at **five navigations in 1.6 seconds with no user input**, on the app's most-visited page, on the mobile devices it targets — and each iteration ran the "a filter changed, go to page 1" branch, so `?page=2` was wiped within about a third of a second. A regression of B6, which the plan claimed to have fixed *structurally*. Fixed at all three levels: the effect no longer fires when nothing changed, the callbacks are stable, and a no-op update no longer navigates. |
+| H12 | S2 | **The header shopping-list badge never updated.** `useLocalStorage` gave each caller its own `useState`, and the `storage` event does not fire in the tab that wrote it. Now a module-level store via `useSyncExternalStore`. |
+| H13 | S2 | **The screen wake lock never came back.** The `release` handler cleared the flag but not the ref, so the "reacquire when visible" guard was never satisfied — one notification during cooking and the screen slept for the rest of the recipe, the exact failure cook mode exists to prevent. |
+| H14 | S2 | **Global shortcuts fired through open dialogs.** Pressing `?` then `n` opened the recipe editor *behind* the still-open help dialog, leaving two `aria-modal` dialogs stacked; `g h` navigated out from under an open confirmation. Overlays are now counted and bare-key shortcuts suppressed while any is open. |
+| H15 | S2 | **Cook mode's step index was never re-clamped**, so instructions changing underneath produced "Step 3 of 1", a progress bar at 300% width, and an `aria-valuenow` above its own maximum. |
+| H16 | S3 | **Cook mode trapped neither focus nor restored it**, despite declaring `aria-modal="true"` — telling a screen reader the background was inert while the keyboard tabbed straight into it. The trap is now shared with `Modal`. |
+| H17 | S3 | **One malformed entry destroyed the whole list.** The `localStorage` guards were `Array.every`, and a failed guard deletes the key — so a single bad element discarded the entire shopping list. Now element-wise: bad rows are dropped, good ones kept. |
+| H18 | S3 | Out-of-order save toggles could leave a star permanently wrong, because the identity query holding the id list was never invalidated. |
+| H19 | S4 | Chosen servings leaked one frame into the next recipe when it was already cached, because the reset ran in an effect rather than during render. |
+| H20 | S4 | "Add to list" could not re-add at a different scale, so changing the yield left the shopping list silently stale with no way to update it. |
+
+### Verified correct, no change needed
+
+- **The Cloudinary signature contract.** Checked field by field against what the client posts, and independently re-derived the signature. They match — uploads will work. *(One documented limitation: `resource_type` is excluded from Cloudinary's signature, so pinning the image endpoint in code is advisory. Closing it properly needs a signed upload preset configured in the dashboard.)*
+- **The `pre('validate')` hook.** No write path bypasses it in a way that leaves `totalMinutes` stale.
+- **Filter composition.** `$text`, tags, difficulty, cuisine, time and author occupy distinct keys and compose correctly; `.select()` merges with the text-score projection rather than replacing it.
+- **The B3 class of crash is genuinely gone.** Every `data.` access after a query is behind a loading or error gate.
+- **No memory leaks.** Object URLs revoked, listeners removed, timers and animation frames cancelled.
+
+---
+
+## 6. Risks and things I am explicitly not doing
+
 
 - **Not rewriting git history.** Removing `node_modules` from all 14 commits needs `git filter-repo` and `push --force`, which breaks every existing clone and any open PR. The files stop being tracked from this commit forward; purging the history is a separate, deliberate decision.
 - **Not rotating credentials.** The Firebase web config in history is public-by-design and low-risk, but Firebase Console **authorized domains** and the **Cloudinary unsigned preset** should be reviewed by hand — the preset in particular should be switched to signed-only in the Cloudinary dashboard once the code change lands, and that is a dashboard action I cannot perform.

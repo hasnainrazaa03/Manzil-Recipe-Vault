@@ -49,7 +49,13 @@ export async function optionalAuth(req: Request, _res: Response, next: NextFunct
   try {
     req.user = await verify(token);
   } catch {
-    // A bad token on an optional route is simply treated as anonymous.
+    /**
+     * Anonymous for read purposes — but remembered, because silence is wrong
+     * here. Firebase ID tokens expire hourly, and on a stale tab
+     * `?author=me` quietly became "you have written no recipes" rather than
+     * "please sign in again".
+     */
+    req.authExpired = true;
   }
   next();
 }

@@ -16,6 +16,7 @@ import { useTheme } from './context/ThemeContext';
 import { useAuth } from './context/AuthContext';
 import { useRecipeEditor } from './context/RecipeEditorContext';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useNoOverlayOpen } from './context/OverlayContext';
 
 import HomePage from './pages/HomePage';
 
@@ -47,24 +48,31 @@ export default function App() {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
-  useKeyboardShortcuts({
-    meta: { k: () => setIsPaletteOpen((open) => !open) },
-    keys: {
-      '/': () => document.getElementById('recipe-search')?.focus(),
-      '?': () => setIsHelpOpen(true),
-      n: () => {
-        if (user) openCreate();
+  // Shortcuts stay silent while any dialog is open, so a bare letter cannot
+  // stack a second modal on top of the first or navigate out from under one.
+  const noOverlayOpen = useNoOverlayOpen();
+
+  useKeyboardShortcuts(
+    {
+      meta: { k: () => setIsPaletteOpen((open) => !open) },
+      keys: {
+        '/': () => document.getElementById('recipe-search')?.focus(),
+        '?': () => setIsHelpOpen(true),
+        n: () => {
+          if (user) openCreate();
+        },
+      },
+      chords: {
+        g: {
+          h: () => navigate('/'),
+          s: () => navigate('/saved-recipes'),
+          l: () => navigate('/shopping-list'),
+          p: () => user && navigate(`/profile/${user.uid}`),
+        },
       },
     },
-    chords: {
-      g: {
-        h: () => navigate('/'),
-        s: () => navigate('/saved-recipes'),
-        l: () => navigate('/shopping-list'),
-        p: () => user && navigate(`/profile/${user.uid}`),
-      },
-    },
-  });
+    noOverlayOpen && !isPaletteOpen,
+  );
 
   return (
     <div className="App">

@@ -6,6 +6,7 @@ import { optionalAuth, requireAuth, requireUser } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { readLimiter, writeLimiter } from '../middleware/rateLimit.js';
 import { asyncHandler, notFound } from '../lib/errors.js';
+import { publicRecipes } from '../lib/serialize.js';
 import { objectId, paginate, paginationQuery } from '../schemas/common.js';
 import { profileQuery, updateProfileBody, userIdParams } from '../schemas/user.js';
 import { z } from 'zod';
@@ -30,8 +31,8 @@ async function firebaseDisplayName(uid: string): Promise<string | null> {
 /** GET /api/users/me — the only route that returns the caller's own email. */
 router.get(
   '/me',
-  requireAuth,
   readLimiter,
+  requireAuth,
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
     const profile = await Profile.findOne({ user: user.uid }).lean();
@@ -49,16 +50,22 @@ router.get(
 
 router.put(
   '/me',
-  requireAuth,
   writeLimiter,
+  requireAuth,
   validate({ body: updateProfileBody }),
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
     const body = req.body as z.infer<typeof updateProfileBody>;
 
+    // Only the keys actually supplied are written, so this merges rather than
+    // replacing fields the caller never mentioned.
+    const changes = Object.fromEntries(
+      Object.entries(body).filter(([, value]) => value !== undefined),
+    );
+
     const profile = await Profile.findOneAndUpdate(
       { user: user.uid },
-      { $set: body },
+      { $set: changes },
       { new: true, upsert: true, runValidators: true },
     ).lean();
 
@@ -94,8 +101,8 @@ router.put(
 
 router.get(
   '/me/saved-recipes',
-  requireAuth,
   readLimiter,
+  requireAuth,
   validate({ query: paginationQuery }),
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
@@ -124,15 +131,15 @@ router.get(
         .lean(),
     ]);
 
-    res.json(paginate(recipes, total, query));
+    res.json(paginate(publicRecipes(recipes as unknown as Record<string, unknown>[]), total, query));
   }),
 );
 
 /** PUT /api/users/me/saved-recipes/:recipeId — idempotent toggle. */
 router.put(
   '/me/saved-recipes/:recipeId',
-  requireAuth,
   writeLimiter,
+  requireAuth,
   validate({ params: z.object({ recipeId: objectId }) }),
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
@@ -180,8 +187,8 @@ router.put(
  */
 router.get(
   '/:userId/profile',
-  readLimiter,
   optionalAuth,
+  readLimiter,
   validate({ params: userIdParams, query: profileQuery }),
   asyncHandler(async (req, res) => {
     const { userId } = req.params as { userId: string };
@@ -216,7 +223,7 @@ router.get(
         recipeCount: total,
         isOwner,
       },
-      recipes: paginate(recipes, total, query),
+      recipes: paginate(publicRecipes(recipes as unknown as Record<string, unknown>[]), total, query),
     });
   }),
 );

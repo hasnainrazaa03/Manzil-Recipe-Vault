@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useLocalStorage } from './useLocalStorage';
+import { useLocalStorageArray } from './useLocalStorage';
 import { STORAGE_KEYS } from '../lib/storage';
 import type { Ingredient } from '../types';
 
@@ -13,15 +13,24 @@ export interface ShoppingItem {
   addedAt: number;
 }
 
-const isItem = (value: unknown): value is ShoppingItem =>
-  typeof value === 'object' &&
-  value !== null &&
-  typeof (value as ShoppingItem).id === 'string' &&
-  typeof (value as ShoppingItem).name === 'string' &&
-  typeof (value as ShoppingItem).recipeId === 'string';
-
-const isItemList = (value: unknown): value is ShoppingItem[] =>
-  Array.isArray(value) && value.every(isItem);
+/**
+ * Validates every field a consumer actually reads, not just the identifiers.
+ * A missing `amount` rendered `aria-label="undefined flour"` and copied
+ * "- undefined flour" to the clipboard; a non-boolean `checked` mis-counted
+ * how many items were left.
+ */
+const isItem = (value: unknown): value is ShoppingItem => {
+  if (typeof value !== 'object' || value === null) return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.id === 'string' &&
+    typeof item.name === 'string' &&
+    typeof item.recipeId === 'string' &&
+    typeof item.recipeTitle === 'string' &&
+    typeof item.amount === 'string' &&
+    typeof item.checked === 'boolean'
+  );
+};
 
 /**
  * A shopping list held in the browser.
@@ -31,10 +40,9 @@ const isItemList = (value: unknown): value is ShoppingItem[] =>
  * supermarket, which is precisely where it gets used.
  */
 export function useShoppingList() {
-  const [items, setItems] = useLocalStorage<ShoppingItem[]>(
+  const [items, setItems] = useLocalStorageArray<ShoppingItem>(
     STORAGE_KEYS.shoppingList,
-    [],
-    isItemList,
+    isItem,
   );
 
   const addRecipe = useCallback(

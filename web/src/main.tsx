@@ -7,6 +7,7 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { RecipeEditorProvider } from './context/RecipeEditorContext';
+import { OverlayProvider } from './context/OverlayContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ApiError } from './lib/api';
 
@@ -35,9 +36,11 @@ createRoot(container).render(
         <ThemeProvider>
           <AuthProvider>
             <BrowserRouter>
-              <RecipeEditorProvider>
-                <App />
-              </RecipeEditorProvider>
+              <OverlayProvider>
+                <RecipeEditorProvider>
+                  <App />
+                </RecipeEditorProvider>
+              </OverlayProvider>
             </BrowserRouter>
           </AuthProvider>
         </ThemeProvider>

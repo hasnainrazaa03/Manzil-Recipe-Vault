@@ -32,8 +32,11 @@ export const updateProfileBody = z
       .max(LIMITS.displayName)
       .transform(sanitizeText)
       .refine((name) => name.length > 0, { message: 'Display name is required' }),
-    bio: z.string().trim().max(LIMITS.bio).default('').transform(sanitizeText),
-    profilePictureUrl: pictureUrl.default(''),
+    // Optional rather than defaulted: with `.default('')` an omitted key became
+    // `$set: { bio: '' }`, so a partial body silently wiped fields the caller
+    // never mentioned. The handler only sets what was actually sent.
+    bio: z.string().trim().max(LIMITS.bio).transform(sanitizeText).optional(),
+    profilePictureUrl: pictureUrl.optional(),
   })
   .strict();
 

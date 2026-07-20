@@ -204,15 +204,30 @@ describe('GET /api/recipes — listing', () => {
     expect(res.body.items[0].title).toBe('Mine');
   });
 
-  it('?author=me returns nothing for an anonymous caller', async () => {
+  /**
+   * "My recipes" without an identity is an authentication problem, not an empty
+   * result. Answering 200 with an empty list told a user whose hourly Firebase
+   * token had just expired that they had written nothing at all.
+   */
+  it('?author=me requires authentication rather than returning an empty list', async () => {
     await createRecipe({ author: USER_A });
     await createRecipe({ author: USER_B });
 
     const res = await api().get('/api/recipes?author=me');
 
-    expect(res.status).toBe(200);
-    expect(res.body.total).toBe(0);
-    expect(res.body.items).toEqual([]);
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('unauthorized');
+  });
+
+  it('?author=me says specifically that the session expired when a token was sent', async () => {
+    await createRecipe({ author: USER_A });
+
+    const res = await api()
+      .get('/api/recipes?author=me')
+      .set('Authorization', 'Bearer not-a-valid-token');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.message).toMatch(/expired/i);
   });
 
   it('?author=<uid> filters to that author', async () => {

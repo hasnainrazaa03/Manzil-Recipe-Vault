@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import DOMPurify from 'dompurify';
@@ -65,8 +65,20 @@ export default function RecipeDetailPage() {
   useDocumentMeta(recipe?.title, recipe?.overview);
   useRecordView(recipe);
 
-  // Reset the chosen yield when navigating between recipes.
-  useEffect(() => setServings(null), [id]);
+  /**
+   * Reset the chosen yield when navigating between recipes — during render,
+   * not in an effect.
+   *
+   * An effect runs after paint, so when the next recipe is already cached
+   * (back-navigation, or one prefetched to open the editor) `isPending` is
+   * false on the very first render with the new id, and one committed frame
+   * showed recipe B's ingredients multiplied by the servings chosen for A.
+   */
+  const previousId = useRef(id);
+  if (previousId.current !== id) {
+    previousId.current = id;
+    if (servings !== null) setServings(null);
+  }
 
   if (isPending) return <DetailSkeleton />;
 
@@ -94,6 +106,15 @@ export default function RecipeDetailPage() {
   const isSaved = savedIds.has(recipe._id);
   const isAuthor = recipe.viewer.isAuthor;
   const inShoppingList = shoppingList.hasRecipe(recipe._id);
+
+  /**
+   * The list stores the amounts as they were displayed when it was added, so
+   * changing the yield afterwards leaves it stale. `addRecipe` already replaces
+   * a recipe's entries for exactly this case, but the button was a plain toggle
+   * and could never reach that branch — the only route to updated quantities
+   * was to remove and re-add, with nothing saying so.
+   */
+  const scaleChanged = inShoppingList && scaleFactor !== 1;
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -125,7 +146,9 @@ export default function RecipeDetailPage() {
   };
 
   const handleShoppingList = () => {
-    if (inShoppingList) {
+    // Already on the list at the yield currently shown — the only sensible
+    // action left is to take it off.
+    if (inShoppingList && !scaleChanged) {
       shoppingList.removeRecipe(recipe._id);
       toast.info('Removed from your shopping list.');
       return;
@@ -140,7 +163,9 @@ export default function RecipeDetailPage() {
         amount: scaleAmount(ingredient.amount, scaleFactor),
       })),
     );
-    toast.success('Added to your shopping list.');
+    toast.success(
+      inShoppingList ? 'Shopping list updated to the new servings.' : 'Added to your shopping list.',
+    );
   };
 
   return (
@@ -200,7 +225,13 @@ export default function RecipeDetailPage() {
 
           <button type="button" onClick={handleShoppingList} className="btn-secondary btn-sm">
             <Icon name="cart" size={16} />
-            <span>{inShoppingList ? 'In shopping list' : 'Add to list'}</span>
+            <span>
+              {scaleChanged
+                ? 'Update list'
+                : inShoppingList
+                  ? 'In shopping list'
+                  : 'Add to list'}
+            </span>
           </button>
 
           <button type="button" onClick={handleShare} className="btn-secondary btn-sm">

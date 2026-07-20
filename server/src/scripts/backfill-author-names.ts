@@ -43,7 +43,7 @@ async function run(): Promise<void> {
       update: {
         $set: {
           authorName:
-            names.get(recipe.author) ?? recipe.authorEmail?.split('@')[0] ?? 'Anonymous cook',
+            names.get(recipe.author) || recipe.authorEmail?.split('@')[0] || 'Anonymous cook',
         },
       },
     },
@@ -53,8 +53,37 @@ async function run(): Promise<void> {
   logger.info(`Backfilled ${result.modifiedCount} of ${pending.length} recipes`);
 
   await repairCommentDisplayNames();
+  await backfillCommentCounts();
 
   await mongoose.connection.close();
+}
+
+/**
+ * Populate `commentCount` on recipes written before the field existed.
+ *
+ * List queries use `.lean()`, which skips hydration — so Mongoose's `default: 0`
+ * never applies and the field simply arrives absent. The API normalises this on
+ * read, but a stored counter is what `sort` and future queries can actually use,
+ * and leaving the two representations disagreeing is the kind of thing that
+ * bites later.
+ */
+async function backfillCommentCounts(): Promise<void> {
+  const result = await Recipe.updateMany({ commentCount: { $exists: false } }, [
+    { $set: { commentCount: { $size: { $ifNull: ['$comments', []] } } } },
+  ]);
+
+  logger.info(`Backfilled commentCount on ${result.modifiedCount} recipes`);
+
+  // Same story for the rating counters, which predate nothing but can drift if
+  // a document was ever written outside the application.
+  const drifted = await Recipe.updateMany(
+    { $expr: { $ne: ['$ratingCount', { $size: { $ifNull: ['$ratings', []] } }] } },
+    [{ $set: { ratingCount: { $size: { $ifNull: ['$ratings', []] } } } }],
+  );
+
+  if (drifted.modifiedCount > 0) {
+    logger.warn(`Corrected ${drifted.modifiedCount} recipes whose ratingCount had drifted`);
+  }
 }
 
 /**
@@ -93,9 +122,11 @@ async function repairCommentDisplayNames(): Promise<void> {
     for (const comment of recipe.comments) {
       if (!comment.authorDisplayName?.includes('@')) continue;
 
+      // `||` not `??`: an empty string is the schema default and is exactly
+      // the case that needs replacing, but `??` would keep it.
       const replacement =
-        names.get(comment.authorId) ??
-        comment.authorDisplayName.split('@')[0] ??
+        names.get(comment.authorId) ||
+        comment.authorDisplayName.split('@')[0] ||
         'Anonymous cook';
 
       await Recipe.updateOne(

@@ -4,6 +4,8 @@ import { Icon } from './Icon';
 import { deriveSteps, ingredientsForStep } from '../lib/recipeSteps';
 import { scaleAmount } from '../lib/amount';
 import { useWakeLock } from '../hooks/useWakeLock';
+import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useOverlay } from '../context/OverlayContext';
 import type { Ingredient } from '../types';
 
 interface CookModeProps {
@@ -38,7 +40,18 @@ export function CookMode({
   const steps = useMemo(() => deriveSteps(instructions), [instructions]);
   const wakeLockHeld = useWakeLock(isOpen);
 
-  const step = steps[index];
+  useFocusTrap(containerRef, isOpen);
+  useOverlay(isOpen);
+
+  /**
+   * Clamped for rendering rather than trusted. `index` is only reset when the
+   * dialog opens, so if `instructions` change underneath — the author edits the
+   * recipe, or a background refetch writes a fresh detail object — a stale index
+   * produced "Step 3 of 1", a progress bar at 300% width, an `aria-valuenow`
+   * above its own `aria-valuemax`, and a blank step body.
+   */
+  const safeIndex = Math.min(index, Math.max(0, steps.length - 1));
+  const step = steps[safeIndex];
   const stepIngredients = useMemo(
     () => (step ? ingredientsForStep(step, ingredients) : []),
     [step, ingredients],
@@ -65,7 +78,6 @@ export function CookMode({
     document.addEventListener('keydown', onKeyDown);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    requestAnimationFrame(() => containerRef.current?.focus());
 
     return () => {
       document.removeEventListener('keydown', onKeyDown);
@@ -89,8 +101,8 @@ export function CookMode({
     );
   }
 
-  const isFirst = index === 0;
-  const isLast = index === steps.length - 1;
+  const isFirst = safeIndex === 0;
+  const isLast = safeIndex === steps.length - 1;
 
   return createPortal(
     <div
@@ -138,18 +150,18 @@ export function CookMode({
         role="progressbar"
         aria-valuemin={1}
         aria-valuemax={steps.length}
-        aria-valuenow={index + 1}
-        aria-label={`Step ${index + 1} of ${steps.length}`}
+        aria-valuenow={safeIndex + 1}
+        aria-label={`Step ${safeIndex + 1} of ${steps.length}`}
       >
         <div
           className="cook-mode-progress-bar"
-          style={{ width: `${((index + 1) / steps.length) * 100}%` }}
+          style={{ width: `${((safeIndex + 1) / steps.length) * 100}%` }}
         />
       </div>
 
       <main className="cook-mode-body">
         <p className="cook-mode-counter">
-          Step {index + 1} of {steps.length}
+          Step {safeIndex + 1} of {steps.length}
         </p>
 
         {/* aria-live so each step is read out as it becomes current. */}
@@ -184,7 +196,7 @@ export function CookMode({
 
         <ol className="cook-mode-dots" aria-hidden="true">
           {steps.map((_, i) => (
-            <li key={i} className={i === index ? 'is-current' : i < index ? 'is-done' : ''} />
+            <li key={i} className={i === safeIndex ? 'is-current' : i < safeIndex ? 'is-done' : ''} />
           ))}
         </ol>
 

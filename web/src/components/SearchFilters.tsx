@@ -54,12 +54,22 @@ export function SearchFilters({
   const { data: cuisines = [] } = useCuisines();
   const [draft, setDraft] = useState(search);
 
-  // Debounce locally so typing stays responsive but the API sees one request
-  // per pause rather than one per keystroke.
+  /**
+   * Debounce locally so typing stays responsive but the API sees one request
+   * per pause rather than one per keystroke.
+   *
+   * The early return is load-bearing, not an optimisation. `onSearchChange` is
+   * recreated by the parent on every render, so this effect re-arms on every
+   * render; without the guard, firing it pushes a navigation, the navigation
+   * re-renders the parent, the parent mints a new callback, and the effect
+   * re-arms — a self-sustaining loop that also wiped `?page` several times a
+   * second, making pagination unusable.
+   */
   useEffect(() => {
+    if (draft === search) return;
     const timer = setTimeout(() => onSearchChange(draft), 350);
     return () => clearTimeout(timer);
-  }, [draft, onSearchChange]);
+  }, [draft, search, onSearchChange]);
 
   // Keep in step when a parent clears the search (e.g. "clear all filters").
   useEffect(() => {

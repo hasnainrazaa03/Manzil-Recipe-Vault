@@ -5,6 +5,7 @@ import { Icon, type IconName } from './Icon';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useRecipeEditor } from '../context/RecipeEditorContext';
+import { useOverlay } from '../context/OverlayContext';
 import { api } from '../lib/api';
 import type { RecipeSummary } from '../types';
 
@@ -42,6 +43,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const { user } = useAuth();
   const { toggle: toggleTheme } = useTheme();
   const { openCreate } = useRecipeEditor();
+
+  useOverlay(isOpen);
 
   const go = (path: string) => {
     navigate(path);

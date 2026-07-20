@@ -5,6 +5,8 @@ declare global {
     interface Request {
       /** Set by `requireAuth`; optionally set by `optionalAuth`. */
       user?: AuthenticatedUser;
+      /** True when a token was supplied but failed verification. */
+      authExpired?: boolean;
     }
   }
 }

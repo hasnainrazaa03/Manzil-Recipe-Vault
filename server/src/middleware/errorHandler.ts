@@ -29,6 +29,48 @@ export function errorHandler(
     return;
   }
 
+  /**
+   * body-parser failures are client mistakes. Without this branch a truncated
+   * JSON body was logged as an unhandled server fault and answered with a 500,
+   * which both alerts on nothing and tells the caller the wrong thing.
+   */
+  const bodyParserType = (error as { type?: string })?.type;
+  if (bodyParserType === 'entity.parse.failed') {
+    res.status(400).json({
+      error: { code: 'invalid_json', message: 'The request body is not valid JSON' },
+    });
+    return;
+  }
+  if (bodyParserType === 'entity.too.large') {
+    res.status(413).json({
+      error: { code: 'payload_too_large', message: 'The request body is too large' },
+    });
+    return;
+  }
+
+  /**
+   * Two documents written concurrently. Mongoose refuses a positional edit
+   * against a stale version; the caller should retry rather than be told the
+   * server broke.
+   */
+  if (error instanceof mongoose.Error.VersionError) {
+    res.status(409).json({
+      error: {
+        code: 'conflict',
+        message: 'Someone else changed this at the same time. Please try again.',
+      },
+    });
+    return;
+  }
+
+  // Duplicate key — most often two concurrent upserts of the same profile.
+  if ((error as { code?: number })?.code === 11000) {
+    res.status(409).json({
+      error: { code: 'conflict', message: 'That already exists. Please try again.' },
+    });
+    return;
+  }
+
   // A malformed ObjectId is a client mistake, not a server fault.
   if (error instanceof mongoose.Error.CastError) {
     res.status(400).json({

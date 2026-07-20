@@ -1,12 +1,13 @@
 import { Router } from 'express';
-import type { FilterQuery } from 'mongoose';
+import mongoose, { type FilterQuery } from 'mongoose';
 import { Recipe, RECIPE_LIST_PROJECTION } from '../models/Recipe.js';
 import { Profile } from '../models/Profile.js';
 import { optionalAuth, requireAuth, requireUser } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { interactionLimiter, readLimiter, writeLimiter } from '../middleware/rateLimit.js';
-import { asyncHandler, forbidden, notFound } from '../lib/errors.js';
+import { asyncHandler, conflict, forbidden, notFound, unauthorized } from '../lib/errors.js';
 import { escapeRegex } from '../lib/sanitize.js';
+import { publicComment, publicRecipe, publicRecipes } from '../lib/serialize.js';
 import { paginate, paginationQuery } from '../schemas/common.js';
 import {
   commentBody,
@@ -21,29 +22,6 @@ import {
 import { LIMITS } from '../models/constants.js';
 
 const router = Router();
-
-/**
- * Strips author email addresses out of anything sent to a client.
- *
- * `authorEmail` is `select: false` on the recipe, but a freshly created or
- * saved document still carries it in memory, and comment subdocuments store
- * their own copy. Serialising through here is what guarantees no response path
- * leaks one.
- */
-function publicComment(comment: Record<string, unknown>) {
-  const { authorEmail: _authorEmail, ...rest } = comment;
-  return rest;
-}
-
-function publicRecipe(recipe: Record<string, unknown>) {
-  const { authorEmail: _authorEmail, comments, ...rest } = recipe;
-  return {
-    ...rest,
-    ...(Array.isArray(comments)
-      ? { comments: comments.map((comment) => publicComment(comment as Record<string, unknown>)) }
-      : {}),
-  };
-}
 
 /**
  * A publishable name derived from whatever identity we have. Takes the local
@@ -140,11 +118,21 @@ function buildSort(query: ListRecipesQuery): SortSpec {
  */
 router.get(
   '/',
-  readLimiter,
   optionalAuth,
+  readLimiter,
   validate({ query: listRecipesQuery }),
   asyncHandler(async (req, res) => {
     const query = req.query as unknown as ListRecipesQuery;
+
+    // "My recipes" is meaningless without an identity. Answering 200 with an
+    // empty list told a user whose token had just expired that they had written
+    // nothing at all.
+    if (query.author === 'me' && !req.user) {
+      throw unauthorized(
+        req.authExpired ? 'Your session has expired. Please sign in again.' : 'Sign in to see your recipes',
+      );
+    }
+
     const filter = buildFilter(query, req.user?.uid);
     const skip = (query.page - 1) * query.limit;
 
@@ -164,7 +152,7 @@ router.get(
         .lean(),
     ]);
 
-    res.json(paginate(recipes, total, query));
+    res.json(paginate(publicRecipes(recipes as unknown as Record<string, unknown>[]), total, query));
   }),
 );
 
@@ -246,17 +234,37 @@ router.get(
             },
             { $sort: { overlap: -1, averageRating: -1, createdAt: -1 } },
             { $limit: LIMIT },
-            { $project: { overlap: 0, ratings: 0, comments: 0, authorEmail: 0, instructions: 0 } },
+            // An inclusion list matching RECIPE_LIST_PROJECTION. The previous
+            // exclusion list left this branch returning `ingredients` and `__v`
+            // while the fallback branch below did not — two shapes from one
+            // endpoint, and a bigger payload than a rail of cards needs.
+            {
+              $project: {
+                title: 1, image: 1, overview: 1, author: 1, authorName: 1, tags: 1,
+                averageRating: 1, ratingCount: 1, commentCount: 1, createdAt: 1, updatedAt: 1,
+                servings: 1, prepMinutes: 1, cookMinutes: 1, totalMinutes: 1,
+                difficulty: 1, cuisine: 1,
+              },
+            },
           ])
         : [];
 
     let results = byTags;
 
-    if (results.length < LIMIT) {
+    /**
+     * Top up with same-cuisine recipes, then with anything well rated.
+     *
+     * The second pass matters: a recipe whose cuisine nothing else shares got
+     * an empty rail, despite the docstring promising otherwise, because the
+     * only fallback was cuisine-restricted.
+     */
+    for (const extraFilter of [recipe.cuisine ? { cuisine: recipe.cuisine } : null, {}]) {
+      if (results.length >= LIMIT || extraFilter === null) continue;
+
       const seen = new Set(results.map((item) => String(item._id)));
       const filler = await Recipe.find({
         _id: { $ne: recipe._id, $nin: [...seen] },
-        ...(recipe.cuisine ? { cuisine: recipe.cuisine } : {}),
+        ...extraFilter,
       })
         .select(RECIPE_LIST_PROJECTION)
         .sort({ averageRating: -1, ratingCount: -1, createdAt: -1 })
@@ -278,8 +286,8 @@ router.get(
  */
 router.get(
   '/:id',
-  readLimiter,
   optionalAuth,
+  readLimiter,
   validate({ params: recipeIdParams, query: paginationQuery }),
   asyncHandler(async (req, res) => {
     const { id } = req.params as { id: string };
@@ -339,8 +347,8 @@ router.get(
 
 router.post(
   '/',
-  requireAuth,
   writeLimiter,
+  requireAuth,
   validate({ body: createRecipeBody }),
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
@@ -359,8 +367,8 @@ router.post(
 
 router.put(
   '/:id',
-  requireAuth,
   writeLimiter,
+  requireAuth,
   validate({ params: recipeIdParams, body: updateRecipeBody }),
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
@@ -381,8 +389,8 @@ router.put(
 
 router.delete(
   '/:id',
-  requireAuth,
   writeLimiter,
+  requireAuth,
   validate({ params: recipeIdParams }),
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
@@ -404,88 +412,144 @@ router.delete(
 
 // === COMMENTS ================================================================
 
+/**
+ * Every write below uses a single atomic update rather than
+ * `findById` → mutate → `save()`.
+ *
+ * That read-modify-write cycle was actively corrupting data: Mongoose emits a
+ * `$push` for the array but a plain `$set` for the counter computed from the
+ * writer's stale copy, so two people commenting at once left `comments.length`
+ * and `commentCount` permanently disagreeing. It also raised `VersionError` —
+ * surfacing as a 500 — whenever anyone edited a comment while someone else
+ * commented on the same recipe.
+ *
+ * Deriving the counter with `$size` inside the same update makes the two
+ * impossible to diverge.
+ */
 router.post(
   '/:id/comments',
-  requireAuth,
   interactionLimiter,
+  requireAuth,
   validate({ params: recipeIdParams, body: commentBody }),
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
     const { id } = req.params as { id: string };
 
-    const recipe = await Recipe.findById(id);
-    if (!recipe) throw notFound('Recipe not found');
+    const profile = await Profile.findOne({ user: user.uid })
+      .select('displayName profilePictureUrl')
+      .lean();
 
-    const profile = await Profile.findOne({ user: user.uid }).select('displayName profilePictureUrl').lean();
-
-    recipe.comments.push({
+    const comment = {
+      _id: new mongoose.Types.ObjectId(),
       text: (req.body as { text: string }).text,
       authorId: user.uid,
       authorEmail: user.email ?? '',
-      // Never the raw email. Falling back to `user.email` here published the
-      // full address of any commenter without a saved profile — which is every
-      // new account — and, since the comment also carries `authorId`, reopened
-      // the uid → email walk that stripping `authorEmail` was meant to close.
+      // Never the raw email: falling back to it published the full address of
+      // any commenter without a saved profile, which is every new account.
       authorDisplayName: profile?.displayName ?? displayNameFrom(user.name ?? user.email),
       authorProfilePictureUrl: profile?.profilePictureUrl ?? '',
+      createdAt: new Date(),
       editedAt: null,
-    });
-    recipe.commentCount = recipe.comments.length;
-    await recipe.save();
+    };
 
-    const created = recipe.comments[recipe.comments.length - 1]!;
-    res.status(201).json(publicComment(created.toJSON()));
+    const updated = await Recipe.findOneAndUpdate(
+      {
+        _id: id,
+        // Bounds the document. Without a cap one account could push a recipe
+        // past MongoDB's 16 MB ceiling, after which *no* write to it succeeds —
+        // its owner could no longer edit it and no comment could be deleted.
+        $expr: { $lt: [{ $size: { $ifNull: ['$comments', []] } }, LIMITS.commentsPerRecipe] },
+      },
+      [
+        { $set: { comments: { $concatArrays: [{ $ifNull: ['$comments', []] }, [comment]] } } },
+        { $set: { commentCount: { $size: '$comments' } } },
+      ],
+      { new: true, projection: { _id: 1 } },
+    ).lean();
+
+    if (!updated) {
+      // Either the recipe is gone or it is full; say which.
+      const exists = await Recipe.exists({ _id: id });
+      if (!exists) throw notFound('Recipe not found');
+      throw conflict(
+        `This recipe has reached its limit of ${LIMITS.commentsPerRecipe} comments.`,
+      );
+    }
+
+    res.status(201).json(publicComment(comment));
   }),
 );
 
 router.patch(
   '/:id/comments/:commentId',
-  requireAuth,
   interactionLimiter,
+  requireAuth,
   validate({ params: commentIdParams, body: commentBody }),
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
     const { id, commentId } = req.params as { id: string; commentId: string };
+    const text = (req.body as { text: string }).text;
+    const editedAt = new Date();
 
-    const recipe = await Recipe.findById(id);
-    if (!recipe) throw notFound('Recipe not found');
+    // Ownership is part of the filter, so the permission check and the write
+    // are one operation and cannot be raced apart.
+    const updated = await Recipe.findOneAndUpdate(
+      { _id: id, comments: { $elemMatch: { _id: commentId, authorId: user.uid } } },
+      { $set: { 'comments.$.text': text, 'comments.$.editedAt': editedAt } },
+      { new: true, projection: { comments: { $elemMatch: { _id: commentId } } } },
+    ).lean();
 
-    const comment = recipe.comments.id(commentId);
-    if (!comment) throw notFound('Comment not found');
-    // Only the comment's author may rewrite its text. The recipe owner can
-    // remove a comment but must not be able to put words in someone's mouth.
-    if (comment.authorId !== user.uid) throw forbidden('You can only edit your own comments');
+    if (!updated) {
+      const recipe = await Recipe.findOne({ _id: id }, { 'comments.$': 1 })
+        .where('comments._id')
+        .equals(commentId)
+        .lean();
+      if (!recipe) throw notFound('Comment not found');
+      // The comment exists but is not this caller's. Only its author may
+      // rewrite the text — a recipe owner can remove a comment but must not be
+      // able to put words in someone's mouth.
+      throw forbidden('You can only edit your own comments');
+    }
 
-    comment.text = (req.body as { text: string }).text;
-    comment.editedAt = new Date();
-    await recipe.save();
-
-    res.json(publicComment(comment.toJSON()));
+    res.json(publicComment(updated.comments[0] as unknown as Record<string, unknown>));
   }),
 );
 
 router.delete(
   '/:id/comments/:commentId',
-  requireAuth,
   interactionLimiter,
+  requireAuth,
   validate({ params: commentIdParams }),
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
     const { id, commentId } = req.params as { id: string; commentId: string };
 
-    const recipe = await Recipe.findById(id);
-    if (!recipe) throw notFound('Recipe not found');
+    const recipe = await Recipe.findOne(
+      { _id: id, 'comments._id': commentId },
+      { author: 1, 'comments.$': 1 },
+    ).lean();
 
-    const comment = recipe.comments.id(commentId);
-    if (!comment) throw notFound('Comment not found');
+    if (!recipe) throw notFound('Comment not found');
 
-    // Comment author, or the owner of the recipe moderating their own page.
-    const canDelete = comment.authorId === user.uid || recipe.author === user.uid;
+    const comment = recipe.comments[0];
+    // The comment's author, or the owner of the recipe moderating their page.
+    const canDelete = comment?.authorId === user.uid || recipe.author === user.uid;
     if (!canDelete) throw forbidden('You cannot delete this comment');
 
-    comment.deleteOne();
-    recipe.commentCount = recipe.comments.length;
-    await recipe.save();
+    await Recipe.updateOne({ _id: id }, [
+      {
+        $set: {
+          comments: {
+            $filter: {
+              input: { $ifNull: ['$comments', []] },
+              as: 'comment',
+              cond: { $ne: ['$$comment._id', new mongoose.Types.ObjectId(commentId)] },
+            },
+          },
+        },
+      },
+      { $set: { commentCount: { $size: '$comments' } } },
+    ]);
 
     res.json({ success: true });
   }),
@@ -493,34 +557,66 @@ router.delete(
 
 // === RATINGS =================================================================
 
+/**
+ * Recomputes both counters from the ratings array in the same update that
+ * changes it, so they cannot drift apart under concurrency.
+ */
+const RECALCULATE_RATING = [
+  {
+    $set: {
+      ratingCount: { $size: { $ifNull: ['$ratings', []] } },
+      averageRating: {
+        $round: [{ $ifNull: [{ $avg: '$ratings.score' }, 0] }, 1],
+      },
+    },
+  },
+];
+
 router.put(
   '/:id/rating',
-  requireAuth,
   interactionLimiter,
+  requireAuth,
   validate({ params: recipeIdParams, body: ratingBody }),
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
     const { id } = req.params as { id: string };
     const { score } = req.body as { score: number };
 
-    const recipe = await Recipe.findById(id);
+    const recipe = await Recipe.findById(id).select('author').lean();
     if (!recipe) throw notFound('Recipe not found');
     // Otherwise the default "Highest Rated" sort is trivially gamed by authors.
     if (recipe.author === user.uid) throw forbidden('You cannot rate your own recipe');
 
-    const existing = recipe.ratings.find((rating) => rating.userId === user.uid);
-    if (existing) {
-      existing.score = score;
-    } else {
-      recipe.ratings.push({ userId: user.uid, score });
-    }
-
-    recalculateRating(recipe);
-    await recipe.save();
+    // Replace-or-append and recount in one write. The previous read-modify-write
+    // let two concurrent raters leave `ratings.length` at 2 with `ratingCount`
+    // at 1 — permanently, since nothing recomputed it until the next rating.
+    const updated = await Recipe.findOneAndUpdate(
+      { _id: id },
+      [
+        {
+          $set: {
+            ratings: {
+              $concatArrays: [
+                {
+                  $filter: {
+                    input: { $ifNull: ['$ratings', []] },
+                    as: 'rating',
+                    cond: { $ne: ['$$rating.userId', user.uid] },
+                  },
+                },
+                [{ userId: user.uid, score }],
+              ],
+            },
+          },
+        },
+        ...RECALCULATE_RATING,
+      ],
+      { new: true, projection: { averageRating: 1, ratingCount: 1 } },
+    ).lean();
 
     res.json({
-      averageRating: recipe.averageRating,
-      ratingCount: recipe.ratingCount,
+      averageRating: updated?.averageRating ?? 0,
+      ratingCount: updated?.ratingCount ?? 0,
       userScore: score,
     });
   }),
@@ -528,41 +624,40 @@ router.put(
 
 router.delete(
   '/:id/rating',
-  requireAuth,
   interactionLimiter,
+  requireAuth,
   validate({ params: recipeIdParams }),
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
     const { id } = req.params as { id: string };
 
-    const recipe = await Recipe.findById(id);
-    if (!recipe) throw notFound('Recipe not found');
+    const updated = await Recipe.findOneAndUpdate(
+      { _id: id },
+      [
+        {
+          $set: {
+            ratings: {
+              $filter: {
+                input: { $ifNull: ['$ratings', []] },
+                as: 'rating',
+                cond: { $ne: ['$$rating.userId', user.uid] },
+              },
+            },
+          },
+        },
+        ...RECALCULATE_RATING,
+      ],
+      { new: true, projection: { averageRating: 1, ratingCount: 1 } },
+    ).lean();
 
-    // `pull({ userId })` looks right but is a no-op: the rating subdocument is
-    // declared `{ _id: false }`, so Mongoose matches by deep equality of the
-    // whole element and a partial object never matches. The array was left
-    // untouched in memory, `recalculateRating` re-wrote the pre-delete counters,
-    // and `save()` still emitted a `$pull` that Mongo honoured — leaving the
-    // stored document with an empty array and non-zero counts.
-    const existing = recipe.ratings.find((rating) => rating.userId === user.uid);
-    if (existing) recipe.ratings.pull(existing);
-
-    recalculateRating(recipe);
-    await recipe.save();
+    if (!updated) throw notFound('Recipe not found');
 
     res.json({
-      averageRating: recipe.averageRating,
-      ratingCount: recipe.ratingCount,
+      averageRating: updated.averageRating,
+      ratingCount: updated.ratingCount,
       userScore: 0,
     });
   }),
 );
-
-function recalculateRating(recipe: { ratings: { score: number }[]; ratingCount: number; averageRating: number }) {
-  const total = recipe.ratings.reduce((sum, rating) => sum + rating.score, 0);
-  recipe.ratingCount = recipe.ratings.length;
-  recipe.averageRating =
-    recipe.ratingCount > 0 ? Math.round((total / recipe.ratingCount) * 10) / 10 : 0;
-}
 
 export default router;

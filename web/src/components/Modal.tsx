@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
+import { useOverlay } from '../context/OverlayContext';
 
 interface ModalProps {
   isOpen: boolean;
@@ -25,6 +26,8 @@ export function Modal({ isOpen, onClose, title, children, hideTitle, size = 'def
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const titleId = useId();
+
+  useOverlay(isOpen);
 
   const trapFocus = useCallback((event: KeyboardEvent) => {
     const dialog = dialogRef.current;

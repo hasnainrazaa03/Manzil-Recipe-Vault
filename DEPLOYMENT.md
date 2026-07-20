@@ -138,7 +138,15 @@ Once, after the first successful deploy:
 npm run migrate:author-names
 ```
 
-Recipe cards used to show the author's email address. They now show a display name, which recipes written before the change do not have. This backfills them and repairs comments that stored a full email as the commenter's public name. It is idempotent — running it twice is harmless.
+This is not optional if you have existing recipes. It does three things:
+
+- **Backfills `authorName`.** Cards used to show the author's email address and now show a display name, which older recipes do not have. Without this they read "Anonymous cook".
+- **Repairs comment display names** that stored a full email address as the commenter's public name.
+- **Populates `commentCount`.** Older recipes have no stored counter, and list queries project the comments away — so there is nothing to count at read time and cards show no comment count at all until this has run.
+
+- **Repairs any counter that has drifted.** `ratingCount` is recomputed from the ratings array wherever the two disagree — which, before the atomic-write fix, concurrent raters could cause.
+
+It is idempotent; running it twice is harmless.
 
 If your host has no shell, run it from your machine with the production `MONGO_URI` set in your local `server/.env`.
 

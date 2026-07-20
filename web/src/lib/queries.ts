@@ -202,6 +202,11 @@ export function useToggleSave() {
       );
     },
     onSettled: () => {
+      // `keys.me` holds the id list every star on the page reads. Without
+      // invalidating it, two quick toggles whose responses land out of order
+      // leave the cache holding the older list — and nothing ever refetches it,
+      // so a star stays wrong until a full reload.
+      void client.invalidateQueries({ queryKey: keys.me });
       void client.invalidateQueries({ queryKey: ['users', 'me', 'saved'] });
     },
   });

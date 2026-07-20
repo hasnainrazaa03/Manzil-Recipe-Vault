@@ -35,8 +35,8 @@ const ALLOWED_FORMATS = 'jpg,jpeg,png,webp,gif';
  */
 router.post(
   '/signature',
-  requireAuth,
   uploadLimiter,
+  requireAuth,
   validate({ body: uploadSignatureBody }),
   asyncHandler(async (req, res) => {
     if (!cloudinaryConfigured) {
