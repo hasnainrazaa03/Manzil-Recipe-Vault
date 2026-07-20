@@ -1,9 +1,26 @@
 /// <reference types="vitest/config" />
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+/**
+ * Demo mode swaps the Firebase SDK for local stubs, so the app can be run and
+ * explored without a Firebase project. It is opt-in via `VITE_DEMO=1`
+ * (`npm run demo`), and the aliases are absent from every other build — no
+ * production code branches on it.
+ */
+const isDemo = process.env.VITE_DEMO === '1';
+
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: isDemo
+      ? {
+          'firebase/app': fileURLToPath(new URL('./dev/firebase-app.stub.ts', import.meta.url)),
+          'firebase/auth': fileURLToPath(new URL('./dev/firebase-auth.stub.ts', import.meta.url)),
+        }
+      : {},
+  },
   build: {
     sourcemap: true,
     rollupOptions: {

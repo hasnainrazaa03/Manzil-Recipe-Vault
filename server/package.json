@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "migrate:author-names": "node dist/scripts/backfill-author-names.js"
+    "migrate:author-names": "node dist/scripts/backfill-author-names.js",
+    "demo": "tsx dev/demo.ts"
   },
   "dependencies": {
     "cloudinary": "^2.8.0",

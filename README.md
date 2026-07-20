@@ -58,6 +58,8 @@ Environment variables:
 
 The server validates its configuration at boot and exits with a readable message rather than failing on the first request that needs a missing value.
 
+> **Just want to look at it?** `cd server && npm run demo` in one terminal and `cd web && npm run demo` in another needs no MongoDB, Firebase or Cloudinary — it runs the real API against a throwaway in-memory database seeded with sample recipes, with sign-in stubbed. See [`DEPLOYMENT.md`](DEPLOYMENT.md#0-running-it-locally-first).
+
 ### 2. The web client
 
 ```bash
@@ -88,6 +90,8 @@ The API additionally has `npm start` to run the compiled output from `dist/`.
 ---
 
 ## Deploying
+
+Full instructions, including how to take the existing deployment down first and the one security item that needs doing in the Cloudinary dashboard, are in **[`DEPLOYMENT.md`](DEPLOYMENT.md)**. In brief:
 
 ### API
 
