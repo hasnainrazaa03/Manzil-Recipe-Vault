@@ -21,6 +21,7 @@ import type {
   RecipeListParams,
   RecipeSummary,
   SaveResponse,
+  TidyInput,
 } from '../types';
 
 /**
@@ -52,6 +53,7 @@ export const keys = {
   versions: (recipeId: string) => ['recipes', recipeId, 'versions'] as const,
   serverShoppingList: ['shopping-list'] as const,
   mealPlan: (week: string) => ['meal-plan', week] as const,
+  aiStatus: ['ai', 'status'] as const,
 };
 
 // === Queries =================================================================
@@ -557,4 +559,28 @@ export function useMealPlanToShoppingList(week: string) {
     mutationFn: () => api.mealPlan.toShoppingList(week),
     onSuccess: () => void client.invalidateQueries({ queryKey: keys.serverShoppingList }),
   });
+}
+
+/**
+ * Whether the writing assistant is configured at all.
+ *
+ * Asked once and cached for the session: the answer is a deployment fact, not
+ * a per-user one, and it gates whether a button exists. Retries are off because
+ * a failure here should quietly mean "no assistant" rather than flashing an
+ * error about a feature the reader never asked for.
+ */
+export function useAiAvailable() {
+  const { data } = useQuery({
+    queryKey: keys.aiStatus,
+    queryFn: ({ signal }) => api.ai.status(signal),
+    staleTime: Infinity,
+    retry: false,
+  });
+
+  return data?.available ?? false;
+}
+
+/** Asks the assistant for a tidied version. Saves nothing. */
+export function useTidyRecipe() {
+  return useMutation({ mutationFn: (input: TidyInput) => api.ai.tidy(input) });
 }

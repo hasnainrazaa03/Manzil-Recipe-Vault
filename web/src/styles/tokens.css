@@ -94,6 +94,16 @@
   --button-secondary-text: #2d3748; /* 9.7:1 on the secondary fill */
 
   /* --- Danger -------------------------------------------------------- */
+  /**
+   * Caution, distinct from danger. Used where the writing assistant refused to
+   * invent something: not an error the author caused, but the one thing on that
+   * screen they must actually read.
+   * Text on surface 6.8:1, border on surface 3.1:1 — both past AA.
+   */
+  --warning-surface: #fffbeb;
+  --warning-border: #d97706;
+  --warning-text: #92400e;
+
   --danger-color: #c53030;   /* white on it: 5.5:1 */
   --danger-hover: #9b2c2c;
   --danger-contrast: #ffffff;
@@ -258,6 +268,11 @@
   --button-secondary-hover: #4c3f47;
   --button-secondary-text: #f2edeb; /* 10.4:1 on the secondary fill */
 
+  /* Text on surface 8.8:1, border on surface 3.4:1 and on the card 4.1:1. */
+  --warning-surface: #3a2f1c;
+  --warning-border: #a07d3e;
+  --warning-text: #f5cf87;
+
   --danger-color: #d24245;   /* white on it: 4.6:1, and 3.2:1 against the card */
   --danger-hover: #e15a5d;
   --danger-contrast: #ffffff;
@@ -343,6 +358,10 @@
     --button-secondary-bg: #3e333a;
     --button-secondary-hover: #4c3f47;
     --button-secondary-text: #f2edeb;
+
+    --warning-surface: #3a2f1c;
+    --warning-border: #a07d3e;
+    --warning-text: #f5cf87;
 
     --danger-color: #d24245;
     --danger-hover: #e15a5d;

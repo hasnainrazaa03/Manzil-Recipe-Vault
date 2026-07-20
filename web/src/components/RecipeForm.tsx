@@ -3,9 +3,10 @@ import { toast } from 'react-toastify';
 import { RichTextEditor } from './RichTextEditor';
 import { Icon } from './Icon';
 import { ImportRecipe } from './ImportRecipe';
+import { TidyReview, type AcceptedTidy } from './TidyReview';
 import { ApiError, uploadImage } from '../lib/api';
-import { useCreateRecipe, useUpdateRecipe } from '../lib/queries';
-import type { Difficulty, Ingredient, RecipeDetail, RecipeInput } from '../types';
+import { useAiAvailable, useCreateRecipe, useTidyRecipe, useUpdateRecipe } from '../lib/queries';
+import type { Difficulty, Ingredient, RecipeDetail, RecipeInput, TidyResult } from '../types';
 
 const EMPTY_INGREDIENT: Ingredient = { amount: '', name: '' };
 
@@ -60,6 +61,10 @@ export function RecipeForm({ recipeToEdit, onSaved, onCancel }: RecipeFormProps)
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+
+  const aiAvailable = useAiAvailable();
+  const tidy = useTidyRecipe();
+  const [proposal, setProposal] = useState<TidyResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createRecipe = useCreateRecipe();
@@ -198,6 +203,61 @@ export function RecipeForm({ recipeToEdit, onSaved, onCancel }: RecipeFormProps)
 
   const currentImage = imagePreview ?? form.image;
 
+  /**
+   * Asks the assistant to tidy what is currently in the form.
+   *
+   * Deliberately sends the *live* form state rather than anything saved: the
+   * whole point is to run it on rough notes before they are worth keeping.
+   */
+  const handleTidy = async () => {
+    setErrors([]);
+    try {
+      const result = await tidy.mutateAsync({
+        title: form.title,
+        overview: form.overview,
+        ingredients: ingredients.filter((i) => `${i.amount}${i.name}`.trim() !== ''),
+        instructions: form.instructions,
+      });
+      setProposal(result);
+    } catch (error) {
+      setErrors([
+        error instanceof ApiError
+          ? error.message
+          : 'The writing assistant could not be reached. Your recipe is untouched.',
+      ]);
+    }
+  };
+
+  /**
+   * Applies only what the author ticked in the review.
+   *
+   * Every field is written back through the same setters the keyboard uses, so
+   * a tidied recipe is in no way distinguishable from a typed one afterwards —
+   * including being editable, and including still needing to be saved.
+   */
+  const applyTidy = (accepted: AcceptedTidy) => {
+    setForm((current) => ({
+      ...current,
+      title: accepted.title || current.title,
+      overview: accepted.overview || current.overview,
+      instructions: accepted.instructions,
+      cuisine: accepted.suggestions.cuisine ?? current.cuisine,
+      difficulty: accepted.suggestions.difficulty ?? current.difficulty,
+      servings: accepted.suggestions.servings?.toString() ?? current.servings,
+      prepMinutes: accepted.suggestions.prepMinutes?.toString() ?? current.prepMinutes,
+      cookMinutes: accepted.suggestions.cookMinutes?.toString() ?? current.cookMinutes,
+      // Merged rather than replaced: the author's own tags are theirs, and an
+      // accepted guess should add to them, not overwrite them.
+      tags: accepted.suggestions.tags
+        ? mergeTags(current.tags, accepted.suggestions.tags)
+        : current.tags,
+    }));
+
+    setIngredients(accepted.ingredients.length > 0 ? accepted.ingredients : [EMPTY_INGREDIENT]);
+    setProposal(null);
+    toast.success('Tidied version applied. Check it over, then save.');
+  };
+
   return (
     <form onSubmit={handleSubmit} className="recipe-form" noValidate>
       {errors.length > 0 && (
@@ -232,6 +292,27 @@ export function RecipeForm({ recipeToEdit, onSaved, onCancel }: RecipeFormProps)
             setErrors([]);
           }}
         />
+      )}
+
+      {aiAvailable && (
+        <div className="tidy-launcher">
+          <div className="tidy-launcher-text">
+            <p className="tidy-launcher-title">Written it roughly?</p>
+            <p className="tidy-launcher-hint">
+              Type it however you like — the assistant will split it into steps and separate the
+              amounts. It never adds a quantity you did not write.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-secondary tidy-button"
+            onClick={handleTidy}
+            disabled={tidy.isPending}
+          >
+            <Icon name="sparkles" size={16} aria-hidden="true" />
+            {tidy.isPending ? 'Tidying…' : 'Tidy up'}
+          </button>
+        </div>
       )}
 
       <div className="field">
@@ -446,6 +527,33 @@ export function RecipeForm({ recipeToEdit, onSaved, onCancel }: RecipeFormProps)
           {isUploading ? 'Uploading image…' : isSaving ? 'Saving…' : isEditing ? 'Update recipe' : 'Add recipe'}
         </button>
       </div>
+
+      <TidyReview
+        isOpen={proposal !== null}
+        proposal={proposal}
+        current={{ ingredients, instructions: form.instructions }}
+        onClose={() => setProposal(null)}
+        onApply={applyTidy}
+      />
     </form>
   );
+}
+
+/** Adds accepted tags to the author's own, without duplicating or reordering. */
+function mergeTags(existing: string, added: string[]): string {
+  const current = existing
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
+  const seen = new Set(current.map((tag) => tag.toLowerCase()));
+  const merged = [...current];
+
+  for (const tag of added) {
+    if (seen.has(tag.toLowerCase())) continue;
+    seen.add(tag.toLowerCase());
+    merged.push(tag);
+  }
+
+  return merged.slice(0, 12).join(', ');
 }

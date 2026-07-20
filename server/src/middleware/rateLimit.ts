@@ -70,3 +70,19 @@ export const importLimiter = make({
   limit: 20,
   message: 'Too many imports. Please wait a few minutes before trying another link.',
 });
+
+/**
+ * The writing assistant. This is the only endpoint in the app where a single
+ * request costs real money rather than just time — each call is a paid model
+ * invocation — so the ceiling is far lower than anything else, and per user
+ * rather than per IP.
+ *
+ * Twelve an hour is generous for the actual use (tidying a recipe as you write
+ * it) and useless for the abuse (farming a model endpoint through someone
+ * else's key).
+ */
+export const aiLimiter = make({
+  windowMs: 60 * 60 * 1000,
+  limit: 12,
+  message: 'You have used the writing assistant a lot in the last hour. Please try again later.',
+});

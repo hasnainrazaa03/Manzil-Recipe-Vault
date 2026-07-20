@@ -326,3 +326,52 @@ Its first version passed while the bug was live, because it matched the whole
 selector head against a single-selector shape and the offending rule was a
 comma-separated list. It was fixed to split first, and both assertions were
 then confirmed to fail against the un-wrapped stylesheet before being trusted.
+
+---
+
+## 8. Wave 7 — the writing assistant (2026-07-20)
+
+A model that reformats rough recipe notes. The design and the rule it turns on
+are in `DESIGN.md` §3 Wave 7; this section records what was found while building
+it.
+
+### The threat the feature had to be built around
+
+Not prompt injection, not cost, not latency — **invention**. Asked to "make this
+proper", a model fills gaps: "some flour" becomes "250 g flour", "cook till
+done" becomes "bake at 180°C for 25 minutes". Both read beautifully, and the
+recipe is now partly fiction under the author's name, for other people to cook
+from. Telling the model not to is necessary and not sufficient, so the rule is
+enforced after the fact in `lib/quantities.ts`, where the model gets no vote.
+
+### Found while building
+
+| # | Sev | Finding |
+|---|---|---|
+| A1 | **S2** | **A dimension leak in the quantity extractor.** `180°C` matched the temperature pass *and* the bare-number pass, so the count `180` was also recorded as something the author had written — which would then have justified an invented "180 g" of an ingredient. Text is now consumed as it is matched. Caught by a test written specifically to check that dimensions cannot bleed, because dimensions are the entire mechanism. |
+| A2 | S3 | **The same invention reported twice.** Deduplication keyed on the raw substring, and the unit pattern consumes an optional trailing full stop, so "250 g" mid-sentence and "250 g." at the end of one looked like two separate findings. Keyed on the value now. |
+| A3 | S3 | **Step numbering read as invented quantities.** Turning prose into "1. … 2. … 3. …" is the single most common thing this feature does, and those numerals are not quantities. Left in, every tidy-up of a three-step recipe would have reported three inventions — and a guard that cries wolf on correct output is a guard nobody reads. Numbering is stripped before the check. |
+| A4 | S4 | `htmlToText` replaced every tag with a space, so `the <strong>onions</strong>.` reached the model as `the onions .` — stray spacing before punctuation, in the prose the model is being asked to imitate. |
+
+### On the negative controls
+
+Every guard in this feature was verified by disabling it and confirming the
+tests fail. The first attempt at that was **partly vacuous**: the mutation for
+the ingredient-amount guard applied, the one for the method guard silently did
+not, and five tests failed where eight should have. It was caught only because
+the number was wrong — the same silent-no-op-edit failure recorded in §4, caught
+the same way.
+
+The second run asserted the mutation target existed before applying it. Both
+guards are now confirmed load-bearing: 5 tests for ingredient amounts, 3 for the
+method, 3 for consent on the review screen.
+
+### Accepted limitations
+
+- **An invented ingredient with no amount cannot be caught.** "salt" carries no
+  number to check. Pinned as a passing test so the limitation is stated
+  somewhere that fails if it ever silently changes. The mitigation is that
+  nothing is saved without the author reading it.
+- **The 2% tolerance is a judgement, not a fact.** Tighter and every honest
+  imperial conversion is flagged (8 oz is 226.8 g and every cookbook writes
+  225); looser and 200 g passes as 250 g. Both directions are tested.

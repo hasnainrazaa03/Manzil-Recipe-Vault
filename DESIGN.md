@@ -74,6 +74,9 @@ Four levels only: flat (page), raised (card), floating (dropdown, popover), over
   type is wider type, and a toggle that resizes shifts everything beside it.
 - **A choice of one is not a choice.** A segmented control with a single
   segment is a label; don't draw it.
+- **A model may change wording. It may not change numbers.** Anything inferred
+  is labelled a guess and starts unticked. Nothing an assistant produces is
+  saved without a human having seen it beside what they wrote.
 
 ---
 
@@ -424,6 +427,69 @@ identical results under UTC+14 and UTC-11.
 
 Sunday belongs to the week that *started* the previous Monday — the off-by-one
 that every week-based feature gets wrong at least once.
+
+
+### Wave 7 — The writing assistant `[x]`
+
+#### 7.1 Tidy rough notes into a presentable recipe `[x]`
+
+The biggest friction in the app is that adding a recipe is *work*. Someone types
+
+```
+2 onion chopped, 1tbsp gg paste, half kg chicken
+fry onions till golden add gg paste then chicken
+cook 20 min add tomatoes
+```
+
+and wants it to come out looking like everything else on the site. That is a
+formatting job — splitting, ordering, capitalising, separating an amount from an
+ingredient name — and models are very good at it.
+
+They are also very good at the adjacent job nobody asked for. "Some flour"
+becomes "250 g flour"; "cook till done" becomes "bake at 180°C for 25 minutes".
+The prose is better and the recipe is now partly fiction, published under the
+author's name, for other people to cook from. **A fabricated quantity is not a
+formatting bug — it is a wrong instruction delivered with total confidence.**
+
+So the feature is built around one rule:
+
+> **The model may change wording. It may not change numbers.**
+
+Enforced in code, not in the prompt. `server/src/lib/quantities.ts` extracts
+every quantity from the author's input and from the model's output, converts
+each to a base unit within its dimension, and requires every output quantity to
+be derivable from an input one. Legitimate tidying passes — "half a kg" → "500
+g", "1tbsp" → "1 tbsp", "two onions" → "2 onions", 350°F → 180°C. Invention does
+not, and the model gets no say in it.
+
+The two halves are handled differently because they can be:
+
+- **An ingredient amount** is a field, so an invented one is *removed* and the
+  row is flagged. The ingredient stays; the gap is the author's to fill.
+- **A step** is a sentence, and a number cannot be cut out of one without
+  wrecking it ("Bake at for"). So the method is all-or-nothing: one invented
+  timing and the author's own text is kept, with the refused numbers named.
+
+Inferred **metadata** — cuisine, difficulty, tags, timings, servings — is a third
+case. Genuinely useful and genuinely a guess, so it comes back in its own block,
+labelled, and each field is an individually rejectable checkbox that starts
+**unticked**. Pre-ticking would mean a distracted author accepts an invented
+cook time by pressing the obvious button, which is the same outcome as never
+asking, reached more slowly.
+
+Nothing is ever saved by this endpoint. It returns a proposal; the author sees
+it beside what they wrote and applies it or discards it.
+
+**Known limitation, deliberately accepted:** an invented ingredient with *no*
+amount ("salt") cannot be caught, because there is no number to check. The
+mitigation is that nothing is saved without the author reading it. This is
+pinned as a passing test so the limitation is stated somewhere that fails if it
+ever silently changes.
+
+The key is optional configuration. Without `GEMINI_API_KEY` the button is not
+rendered at all — the client asks `/api/ai/status` before drawing it — because
+the honest outcome of missing configuration is an absent feature, not a present
+one that errors when pressed.
 
 ---
 

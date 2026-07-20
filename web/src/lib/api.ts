@@ -28,6 +28,8 @@ import type {
   RecipeSummary,
   SaveResponse,
   TagCount,
+  TidyInput,
+  TidyResult,
   UploadSignature,
 } from '../types';
 
@@ -351,6 +353,25 @@ export const api = {
         `/api/meal-plan/shopping-list${toQuery({ week })}`,
         { method: 'POST', auth: 'required' },
       ),
+  },
+
+  /**
+   * The writing assistant. `tidy` saves nothing — it returns a proposal the
+   * author reviews. `status` is asked before the button is drawn, because the
+   * API key is optional configuration and the honest outcome of not having one
+   * is that the feature is absent rather than broken.
+   */
+  ai: {
+    status: (signal?: AbortSignal) =>
+      request<{ available: boolean }>('/api/ai/status', { auth: 'none', signal }),
+
+    tidy: (input: TidyInput, signal?: AbortSignal) =>
+      request<TidyResult>('/api/ai/tidy', {
+        method: 'POST',
+        body: input,
+        auth: 'required',
+        signal,
+      }),
   },
 
   uploads: {

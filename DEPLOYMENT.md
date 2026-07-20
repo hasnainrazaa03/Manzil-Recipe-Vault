@@ -325,3 +325,35 @@ Check the API logs first — errors are structured JSON with a `code`, and valid
 The old code is still in git history at `f348010`. If you need to go back, redeploy that commit — but note it will show emails on cards again, since the migration renames a field it does not read.
 
 Nothing in this release drops or renames existing data. `authorName` and the metadata fields were **added**; `authorEmail` is still stored, it is simply no longer sent to clients.
+
+---
+
+## 8. The writing assistant (optional)
+
+The "Tidy up" button on the recipe form calls Google's Gemini API. It is
+**entirely optional**: with no key the client asks `/api/ai/status`, gets
+`{available:false}`, and never draws the button. Nothing else changes.
+
+To turn it on:
+
+1. Get a key at <https://aistudio.google.com/apikey>. The free tier is generous
+   and this feature makes one small request per press.
+2. On the Render web service, add:
+
+   | Variable | Value |
+   |---|---|
+   | `GEMINI_API_KEY` | the key from step 1 |
+   | `GEMINI_MODEL` | `gemini-2.5-flash` (the default; no need to set it) |
+
+3. Redeploy. Nothing on the client needs rebuilding — availability is read from
+   the API at runtime, so the button appears on its own.
+
+**Cost control is already in place.** The endpoint is authenticated, capped at
+12 calls per user per hour, bounded to 4,096 output tokens, and aborts the
+upstream call if the browser goes away mid-request. If you want a hard stop,
+set a spend limit on the Google Cloud project rather than relying on the rate
+limit alone.
+
+**To turn it off**, delete `GEMINI_API_KEY` and redeploy. The button disappears;
+no recipe that was tidied is affected, since the output was saved as ordinary
+recipe text with no link to the assistant.

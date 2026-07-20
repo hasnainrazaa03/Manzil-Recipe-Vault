@@ -293,3 +293,45 @@ export interface MealPlanEntryInput {
   recipe: string;
   servings?: number | null;
 }
+
+/**
+ * A proposal from the writing assistant. Nothing here is saved until the author
+ * accepts it — see `TidyReview`.
+ */
+export interface TidyIngredient extends Ingredient {
+  /**
+   * The assistant proposed an amount the author had not written, and the server
+   * removed it. Shown on the row so the author knows the gap is theirs to fill.
+   */
+  amountRemoved?: boolean;
+}
+
+/** A value the assistant inferred rather than read. Always presented as a guess. */
+export interface TidySuggestion<T> {
+  value: T;
+  inferred: true;
+}
+
+export interface TidyResult {
+  title: string;
+  overview: string;
+  ingredients: TidyIngredient[];
+  instructions: string;
+  suggestions: {
+    cuisine?: TidySuggestion<string>;
+    difficulty?: TidySuggestion<Difficulty>;
+    tags?: TidySuggestion<string[]>;
+    prepMinutes?: TidySuggestion<number>;
+    cookMinutes?: TidySuggestion<number>;
+    servings?: TidySuggestion<number>;
+  };
+  /** Things the author must be told, in plain sentences. Never hidden. */
+  warnings: string[];
+}
+
+export interface TidyInput {
+  title: string;
+  overview: string;
+  ingredients: Ingredient[];
+  instructions: string;
+}

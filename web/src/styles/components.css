@@ -5099,3 +5099,221 @@ mark {
     transition: none;
   }
 }
+
+/* ==========================================================================
+   The writing assistant
+   ========================================================================== */
+
+.tidy-launcher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-6);
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.tidy-launcher-text {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.tidy-launcher-title {
+  margin: 0 0 var(--spacing-1);
+  font-weight: 600;
+}
+
+.tidy-launcher-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--secondary-text);
+}
+
+.tidy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex: none;
+}
+
+.tidy-review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+/**
+ * The warnings block, styled to be read rather than dismissed.
+ *
+ * Every line in here is a place the assistant tried to invent a quantity and
+ * was stopped. That is the single most important thing on the screen, so it
+ * sits above everything, carries `role="alert"`, and has no close button.
+ */
+.tidy-warnings {
+  display: flex;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
+  background-color: var(--warning-surface);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-lg);
+}
+
+.tidy-warnings .icon {
+  flex: none;
+  color: var(--warning-text);
+}
+
+.tidy-warnings-title {
+  margin: 0 0 var(--spacing-2);
+  font-weight: 600;
+}
+
+.tidy-warnings ul {
+  margin: 0;
+  padding-left: var(--spacing-5);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.tidy-intro {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--secondary-text);
+}
+
+.tidy-section > h3 {
+  margin: 0 0 var(--spacing-3);
+  font-size: var(--text-h3);
+}
+
+/* Side by side where there is room, stacked where there is not — the
+   comparison is the point, and two 40-character columns on a phone is not a
+   comparison. */
+.tidy-columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-4);
+}
+
+@media (min-width: 40rem) {
+  .tidy-columns {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.tidy-column {
+  padding: var(--spacing-3);
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.tidy-column--after {
+  background-color: var(--card-background);
+  border-color: var(--border-strong);
+}
+
+.tidy-column-title {
+  margin: 0 0 var(--spacing-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--secondary-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tidy-list {
+  margin: 0;
+  padding-left: var(--spacing-5);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+}
+
+.tidy-list--steps li {
+  margin-bottom: var(--spacing-2);
+}
+
+.tidy-amount {
+  display: inline-block;
+  min-width: 4.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.tidy-flag {
+  margin-left: var(--spacing-2);
+  padding: 0 var(--spacing-2);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--warning-text);
+  background-color: var(--warning-surface);
+  border-radius: var(--radius-full);
+}
+
+.tidy-unchanged {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--secondary-text);
+}
+
+.tidy-guess-note {
+  margin: 0 0 var(--spacing-3);
+  font-size: var(--text-sm);
+  color: var(--secondary-text);
+}
+
+.tidy-guesses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tidy-guess {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.tidy-guess:hover {
+  border-color: var(--border-strong);
+}
+
+.tidy-guess input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
+  accent-color: var(--button-primary-bg);
+  cursor: pointer;
+}
+
+.tidy-guess-label {
+  min-width: 6rem;
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.tidy-guess-value {
+  font-size: var(--text-sm);
+  color: var(--secondary-text);
+}
+
+.tidy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+}

@@ -26,6 +26,15 @@ const envSchema = z.object({
   FIREBASE_SERVICE_ACCOUNT: z.string().optional(),
   FIREBASE_SERVICE_ACCOUNT_PATH: z.string().optional(),
 
+  /**
+   * Optional, like Cloudinary. Without it the writing assistant simply does not
+   * appear — the app is fully usable without ever calling a model, and a
+   * missing key must never be something a reader discovers by pressing a button
+   * and getting an error.
+   */
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
