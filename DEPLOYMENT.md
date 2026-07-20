@@ -117,6 +117,16 @@ If you would rather discard the old environment entirely than copy values across
 
 **The MongoDB database.** Delete the cluster and the recipes are gone. Nothing else here is destructive.
 
+**Resetting the database password.** Atlas → **Database Access** → the pencil icon next to `recipe_user` → **Edit Password** → **Autogenerate Secure Password** → copy it → **Update User**. It takes effect in about ten seconds and does not touch your data.
+
+Then rebuild the connection string without hand-editing it:
+
+```bash
+cd server
+npm run make:uri -- '<the-new-password>' <database-name>   # percent-encodes and copies to clipboard
+npm run check:db                                           # verifies it and lists your databases
+```
+
 Note that the *connection string* is not a secret you need to preserve — Atlas shows it any time (**Connect → Drivers**), and you can reset the database user's password under **Database Access → Edit → Edit Password** without touching the data. So you can safely discard `MONGO_URI` too, as long as the cluster itself survives.
 
 Before anything else, verify you can reach it and find out which database your recipes are actually in:
