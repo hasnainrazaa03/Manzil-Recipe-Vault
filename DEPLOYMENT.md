@@ -45,8 +45,10 @@ Nothing is persisted. Restarting the API gives a clean, freshly seeded database.
 This is the one item that is genuinely urgent. The old client uploaded directly to Cloudinary using an **unsigned upload preset whose name shipped in the JavaScript bundle**. Anyone who read that bundle can upload arbitrary files to your account, and will still be able to after you deploy, because the preset lives in Cloudinary rather than in the code.
 
 1. Cloudinary dashboard → **Settings** → **Upload** → **Upload presets**.
-2. Find the preset the old app used (its name is in the old bundle, and in your old `VITE_CLOUDINARY_UPLOAD_PRESET`).
+2. Identify yours. It is the one whose **Mode is `Unsigned`**, with a random-looking name such as `rku9fzct` — Cloudinary generates that name when unsigned uploading is enabled, and it is what `VITE_CLOUDINARY_UPLOAD_PRESET` pointed at.
 3. Either **delete it**, or edit it and set **Signing Mode → Signed**.
+
+**Leave `ml_default` alone.** Cloudinary creates it for every account (it is the Media Library default, hence the ML image/video/raw badges) and it is already **Signed**, so it cannot be used without your API secret. Deleting it can break Media Library uploads, and it tends to reappear.
 
 The new code does not use an upload preset at all. It mints a server-side signature scoped to a per-user folder with an allow-list of image formats, so nothing here will break.
 
@@ -104,6 +106,74 @@ Only if you want a genuinely fresh project. You lose the deployment history, the
 ```bash
 mongodump --uri "$MONGO_URI" --out ./backup-$(date +%F)
 ```
+
+---
+
+## 2A. Clean reset: rebuilding every credential from scratch
+
+If you would rather discard the old environment entirely than copy values across, you can. **Every secret in this stack is regenerable except one.**
+
+### The one thing you cannot get back
+
+**The MongoDB database.** Delete the cluster and the recipes are gone. Nothing else here is destructive.
+
+Note that the *connection string* is not a secret you need to preserve — Atlas shows it any time (**Connect → Drivers**), and you can reset the database user's password under **Database Access → Edit → Edit Password** without touching the data. So you can safely discard `MONGO_URI` too, as long as the cluster itself survives.
+
+Back it up first regardless:
+
+```bash
+mongodump --uri "$MONGO_URI" --out ./backup-$(date +%F)
+```
+
+### Where each value comes from, fresh
+
+**API — 8 variables**
+
+| Variable | Get it from | Notes |
+|---|---|---|
+| `MONGO_URI` | Atlas → **Connect → Drivers** | Reset the password under Database Access if you no longer have it. |
+| `NODE_ENV` | — | `production` |
+| `PORT` | — | Leave unset; the platform injects it. |
+| `CORS_ORIGINS` | Your frontend URL | Only known after step 4 below. |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase Console → **Project Settings → Service Accounts → Generate new private key** | Downloads a JSON file. Flatten with `jq -c . serviceAccountKey.json`. |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary → **Dashboard** | |
+| `CLOUDINARY_API_KEY` | Cloudinary → **Settings → API Keys** | |
+| `CLOUDINARY_API_SECRET` | Cloudinary → **Settings → API Keys** | Viewable; rotate here if you want a clean one. |
+
+**Web — 7 variables**
+
+| Variable | Get it from |
+|---|---|
+| `VITE_API_URL` | Your API URL, known after step 3. |
+| `VITE_FIREBASE_API_KEY` and the other five `VITE_FIREBASE_*` | Firebase Console → **Project Settings → General → Your apps → SDK setup and configuration**. Always visible; these are not secrets. |
+
+### What generating a new Firebase key does and does not do
+
+- **Does not** sign anyone out, or touch a single user account. Firebase Auth users are stored separately from service-account credentials.
+- **Does not** invalidate the old key. Both work until you explicitly delete the old one — so there is no window where nothing works. Delete the old key afterwards for hygiene: Google Cloud Console → **IAM & Admin → Service Accounts → Keys**.
+
+Rotating the **Cloudinary API secret** *does* take effect immediately and will break the old deployment — which is exactly what you want during a teardown.
+
+### Order of operations
+
+Two values are circular — the API needs the frontend's URL for CORS, and the frontend needs the API's URL. Sequence it like this:
+
+1. **Delete or pause** the old Vercel and API projects. Leave the database alone.
+2. **Regenerate** the Firebase service-account key and, if you want, the Cloudinary secret. Delete the `rku9fzct`-style unsigned preset while you are in Cloudinary (see §1.1).
+3. **Deploy the API.** Set everything except `CORS_ORIGINS`, or set it to a placeholder. Note the URL it gets.
+4. **Deploy the web client** with `VITE_API_URL` pointing at that URL. Note the URL it gets.
+5. **Go back and set `CORS_ORIGINS`** to the frontend URL, then **redeploy the API**. Skipping this redeploy is the single most common cause of "the site loads but no recipes appear".
+6. **Add the frontend domain** to Firebase → Authentication → Settings → **Authorized domains**, or sign-in will fail.
+7. **Run the migration**: `npm run migrate:author-names`.
+8. **Work through the verification list** in §5.
+
+### What survives a full reset
+
+- Every recipe, comment, rating and profile — they are in MongoDB.
+- Every user account and password — they are in Firebase Auth.
+- Every uploaded image — they are in Cloudinary's media library, and the URLs stored on recipes keep working.
+
+You are only rebuilding the wiring, not the contents.
 
 ---
 
