@@ -1,21 +1,48 @@
 {
-  "name": "server",
+  "name": "manzil-recipe-vault-server",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "API server for Manzil Recipe Vault",
+  "type": "module",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate:author-names": "node dist/scripts/backfill-author-names.js"
+  },
   "dependencies": {
+    "cloudinary": "^2.8.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
     "firebase-admin": "^13.5.0",
-    "mongodb": "^6.19.0",
-    "mongoose": "^8.18.0"
+    "helmet": "^8.1.0",
+    "isomorphic-dompurify": "^2.30.0",
+    "mongoose": "^8.18.0",
+    "pino": "^9.13.1",
+    "pino-http": "^10.5.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.7.0",
+    "@types/supertest": "^6.0.3",
+    "eslint": "^9.33.0",
+    "mongodb-memory-server": "^10.1.4",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^3.2.4"
   }
 }

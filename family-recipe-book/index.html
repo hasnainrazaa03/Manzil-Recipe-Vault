@@ -2,13 +2,60 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <title>Manzil Recipe Vault</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <meta
+      name="description"
+      content="Collect, share, and rediscover family recipes. Manzil Recipe Vault keeps the dishes you love in one place."
+    />
+    <meta name="theme-color" content="#fcc9c7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1f1a1d" media="(prefers-color-scheme: dark)" />
+
+    <link rel="icon" type="image/png" href="/logo2.png" />
+    <link rel="apple-touch-icon" href="/logo2.png" />
+
+    <!-- Open Graph / social sharing. Recipe pages override the title and
+         description at runtime; these are the defaults for the site itself. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Manzil Recipe Vault" />
+    <meta property="og:title" content="Manzil Recipe Vault" />
+    <meta
+      property="og:description"
+      content="Collect, share, and rediscover family recipes."
+    />
+    <meta property="og:image" content="/logo.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!--
+      Font Awesome 4.7 used to be pulled from a CDN here: a render-blocking
+      third-party request, and a supply-chain dependency for twenty small
+      glyphs. Icons are now inline SVG in src/components/Icon.tsx.
+    -->
+
+    <script>
+      // Applies the saved theme before first paint. Without this the page
+      // renders light and then flips, which is worse than either theme.
+      (function () {
+        try {
+          var stored = localStorage.getItem('manzil-theme');
+          var theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+        } catch (error) {
+          /* localStorage unavailable (private mode) — fall back to light. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <noscript>Manzil Recipe Vault needs JavaScript enabled to run.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
