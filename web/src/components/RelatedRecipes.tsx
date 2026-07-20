@@ -24,6 +24,7 @@ export function RelatedRecipes({ recipeId }: { recipeId: string }) {
               <Link to={`/recipe/${recipe._id}`} className="related-link">
                 <img
                   src={recipe.image || FALLBACK_IMAGE}
+                  referrerPolicy="no-referrer"
                   alt=""
                   loading="lazy"
                   onError={(event) => {

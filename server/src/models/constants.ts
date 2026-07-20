@@ -39,8 +39,12 @@ export const PAGINATION = {
   maxPage: 1_000,
 } as const;
 
-/** Only these hosts may be used for an image URL pasted by a user. */
-export const ALLOWED_IMAGE_HOSTS = [
+/**
+ * Hosts we upload to or fall back on. No longer used to *restrict* what a user
+ * may paste — see the note on `imageUrl` in schemas/recipe.ts — but kept as the
+ * set the client can safely render without a referrer policy.
+ */
+export const KNOWN_IMAGE_HOSTS = [
   'res.cloudinary.com',
   'images.pexels.com',
   'images.unsplash.com',

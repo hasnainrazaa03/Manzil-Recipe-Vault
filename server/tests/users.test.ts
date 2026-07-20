@@ -213,19 +213,18 @@ describe('PUT /api/users/me', () => {
     expect(res.status).toBe(400);
   });
 
-  it('rejects a profile picture on a disallowed host and accepts an allowed one', async () => {
-    const bad = await api()
+  it('accepts a profile picture from any https host, but not a plain http one', async () => {
+    const allowed = await api()
       .put('/api/users/me')
       .set(authHeader(ME))
-      .send({ displayName: 'Cook', profilePictureUrl: 'https://evil.example.com/a.png' });
-    expect(bad.status).toBe(400);
+      .send({ displayName: 'Ada', profilePictureUrl: 'https://www.example.com/me.jpg' });
+    expect(allowed.status).toBe(200);
 
-    const good = await api()
+    const insecure = await api()
       .put('/api/users/me')
       .set(authHeader(ME))
-      .send({ displayName: 'Cook', profilePictureUrl: 'https://res.cloudinary.com/a.png' });
-    expect(good.status).toBe(200);
-    expect(good.body.profilePictureUrl).toBe('https://res.cloudinary.com/a.png');
+      .send({ displayName: 'Ada', profilePictureUrl: 'http://www.example.com/me.jpg' });
+    expect(insecure.status).toBe(400);
   });
 
   it('rejects unknown keys, so savedRecipes cannot be written', async () => {

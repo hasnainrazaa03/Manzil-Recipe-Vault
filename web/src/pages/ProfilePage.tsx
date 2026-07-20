@@ -59,7 +59,12 @@ export default function ProfilePage() {
       <header className="profile-header">
         <div className="profile-info">
           {profile.profilePictureUrl ? (
-            <img src={profile.profilePictureUrl} alt="" className="profile-avatar" />
+            <img
+              src={profile.profilePictureUrl}
+              alt=""
+              className="profile-avatar"
+              referrerPolicy="no-referrer"
+            />
           ) : (
             <div className="profile-avatar profile-avatar--placeholder" aria-hidden="true">
               <Icon name="user" size={32} />

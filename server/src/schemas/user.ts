@@ -1,8 +1,9 @@
 import { z } from 'zod';
-import { ALLOWED_IMAGE_HOSTS, LIMITS } from '../models/constants.js';
+import { LIMITS } from '../models/constants.js';
 import { sanitizeText } from '../lib/sanitize.js';
 import { paginationQuery } from './common.js';
 
+/** See the note on `imageUrl` in schemas/recipe.ts for why this is not host-restricted. */
 const pictureUrl = z
   .string()
   .trim()
@@ -11,16 +12,12 @@ const pictureUrl = z
     (value) => {
       if (value === '') return true;
       try {
-        const url = new URL(value);
-        return (
-          url.protocol === 'https:' &&
-          ALLOWED_IMAGE_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))
-        );
+        return new URL(value).protocol === 'https:';
       } catch {
         return false;
       }
     },
-    { message: 'Profile picture must be an https URL from an allowed host' },
+    { message: 'Profile picture must be a full https:// URL' },
   );
 
 export const updateProfileBody = z

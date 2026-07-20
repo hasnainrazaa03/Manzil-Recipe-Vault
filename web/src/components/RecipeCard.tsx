@@ -38,6 +38,7 @@ export function RecipeCard({
         <Link to={`/recipe/${recipe._id}`} className="card-image-link" tabIndex={-1} aria-hidden="true">
           <img
             src={recipe.image || FALLBACK_IMAGE}
+            referrerPolicy="no-referrer"
             alt=""
             loading="lazy"
             decoding="async"

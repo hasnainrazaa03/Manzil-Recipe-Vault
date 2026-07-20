@@ -15,7 +15,7 @@ interface LightboxProps {
 export function Lightbox({ isOpen, onClose, src, alt }: LightboxProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={alt} hideTitle size="wide">
-      <img src={src} alt={alt} className="lightbox-image" />
+      <img src={src} alt={alt} className="lightbox-image" referrerPolicy="no-referrer" />
     </Modal>
   );
 }

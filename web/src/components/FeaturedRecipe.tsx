@@ -37,6 +37,7 @@ export function FeaturedRecipe() {
         <div className="featured-image">
           <img
             src={recipe.image || FALLBACK_IMAGE}
+            referrerPolicy="no-referrer"
             alt=""
             onError={(event) => {
               event.currentTarget.src = FALLBACK_IMAGE;

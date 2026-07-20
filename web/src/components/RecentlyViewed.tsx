@@ -30,6 +30,7 @@ export function RecentlyViewed() {
             <Link to={`/recipe/${entry.id}`} className="recent-item">
               <img
                 src={entry.image || FALLBACK_IMAGE}
+                referrerPolicy="no-referrer"
                 alt=""
                 loading="lazy"
                 onError={(event) => {

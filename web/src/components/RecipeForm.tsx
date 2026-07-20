@@ -241,7 +241,7 @@ export function RecipeForm({ recipeToEdit, onSaved, onCancel }: RecipeFormProps)
 
         {currentImage && (
           <div className="image-preview">
-            <img src={currentImage} alt="Recipe preview" />
+            <img src={currentImage} alt="Recipe preview" referrerPolicy="no-referrer" />
             <button type="button" onClick={clearImage} className="btn-secondary btn-sm">
               <Icon name="close" size={14} />
               <span>Remove image</span>

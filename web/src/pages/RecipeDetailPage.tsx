@@ -188,6 +188,7 @@ export default function RecipeDetailPage() {
         >
           <img
             src={recipe.image || FALLBACK_IMAGE}
+            referrerPolicy="no-referrer"
             alt={recipe.title}
             onError={(event) => {
               event.currentTarget.src = FALLBACK_IMAGE;

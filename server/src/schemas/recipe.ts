@@ -1,12 +1,26 @@
 import { z } from 'zod';
-import { ALLOWED_IMAGE_HOSTS, DIFFICULTIES, LIMITS } from '../models/constants.js';
+import { DIFFICULTIES, LIMITS } from '../models/constants.js';
 import { sanitizeHtml, sanitizeText } from '../lib/sanitize.js';
 import { objectId, paginationQuery, searchQuery } from './common.js';
 
 /**
- * An image is either empty or an https URL on a host we trust. Restricting the
- * host stops the field being used to point at attacker-controlled infrastructure
- * (tracking pixels, SSRF bait for any future server-side fetch, malware links).
+ * An image is either empty or an https URL.
+ *
+ * This was briefly restricted to an allow-list of five hosts, which was the
+ * wrong call: the app offers "paste an image URL" as a first-class way to
+ * illustrate a recipe, and almost every real image lives on a food blog or a
+ * newspaper's CDN. The rule did not just reject new pastes — it made recipes
+ * *uneditable*, because the client submits the existing image URL back with
+ * every save, so an author could no longer fix a typo in a recipe they had
+ * illustrated from anywhere but those five domains.
+ *
+ * What the allow-list actually bought was small: the server never fetches these
+ * URLs, so there is no SSRF surface, and requiring https already rules out
+ * `javascript:` and `data:`. The residual risk is a third-party host seeing
+ * that someone loaded the image, which is addressed where it belongs — the
+ * client renders user-supplied images with `referrerPolicy="no-referrer"`.
+ *
+ * Uploads remain pinned to our own Cloudinary folder; that path is unaffected.
  */
 const imageUrl = z
   .string()
@@ -16,16 +30,12 @@ const imageUrl = z
     (value) => {
       if (value === '') return true;
       try {
-        const url = new URL(value);
-        return (
-          url.protocol === 'https:' &&
-          ALLOWED_IMAGE_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))
-        );
+        return new URL(value).protocol === 'https:';
       } catch {
         return false;
       }
     },
-    { message: `Image must be an https URL from one of: ${ALLOWED_IMAGE_HOSTS.join(', ')}` },
+    { message: 'Image must be a full https:// URL' },
   );
 
 const ingredient = z.object({

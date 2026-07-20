@@ -561,14 +561,49 @@ describe('validation on create', () => {
     expect(res.status).toBe(201);
   });
 
-  it('rejects an image URL on a disallowed host', async () => {
+  /**
+   * Host restriction was removed deliberately. It made recipes *uneditable*:
+   * the client submits the existing image URL back with every save, so an
+   * author who had illustrated a recipe from a food blog could no longer fix a
+   * typo in it. The server never fetches these URLs, so there is no SSRF
+   * surface, and requiring https rules out javascript: and data:.
+   */
+  it('accepts an https image URL from any host', async () => {
+    for (const image of [
+      'https://www.masalachilli.com/wp-content/uploads/bhindi.jpg',
+      'https://res.cloudinary.com/demo/image/upload/x.jpg',
+      'https://images.pexels.com/photos/1/x.jpeg',
+    ]) {
+      const res = await api()
+        .post('/api/recipes')
+        .set(authHeader(USER_A))
+        .send(recipePayload({ image }));
+      expect(res.status, image).toBe(201);
+      expect(res.body.image).toBe(image);
+    }
+  });
+
+  it('still refuses anything that is not an https URL', async () => {
+    for (const image of [
+      'http://insecure.example.com/x.jpg',
+      'javascript:alert(1)',
+      'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
+      'not a url at all',
+    ]) {
+      const res = await api()
+        .post('/api/recipes')
+        .set(authHeader(USER_A))
+        .send(recipePayload({ image }));
+      expect(res.status, image).toBe(400);
+    }
+  });
+
+  it('accepts an empty image', async () => {
     const res = await api()
       .post('/api/recipes')
       .set(authHeader(USER_A))
-      .send(recipePayload({ image: 'https://evil.example.com/x.png' }));
-
-    expect(res.status).toBe(400);
-    expect((res.body.error.details as { path: string }[]).some((d) => d.path === 'image')).toBe(true);
+      .send(recipePayload({ image: '' }));
+    expect(res.status).toBe(201);
   });
 
   it('rejects a non-https image URL on an allowed host', async () => {

@@ -136,6 +136,7 @@ export function CommentSection({
                 <div className="comment-author-info">
                   <img
                     src={comment.authorProfilePictureUrl || AVATAR_FALLBACK}
+                    referrerPolicy="no-referrer"
                     alt=""
                     className="comment-avatar"
                     loading="lazy"

@@ -137,7 +137,12 @@ export default function EditProfilePage() {
           <label htmlFor="profile-picture">Profile picture</label>
           {shownPicture && (
             <div className="avatar-preview">
-              <img src={shownPicture} alt="Your profile picture" className="profile-avatar" />
+              <img
+                src={shownPicture}
+                alt="Your profile picture"
+                className="profile-avatar"
+                referrerPolicy="no-referrer"
+              />
               <button
                 type="button"
                 className="btn-secondary btn-sm"
