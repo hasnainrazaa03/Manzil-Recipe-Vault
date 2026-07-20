@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { toast } from 'react-toastify';
 import { RichTextEditor } from './RichTextEditor';
 import { Icon } from './Icon';
+import { ImportRecipe } from './ImportRecipe';
 import { ApiError, uploadImage } from '../lib/api';
 import { useCreateRecipe, useUpdateRecipe } from '../lib/queries';
 import type { Difficulty, Ingredient, RecipeDetail, RecipeInput } from '../types';
@@ -208,6 +209,29 @@ export function RecipeForm({ recipeToEdit, onSaved, onCancel }: RecipeFormProps)
             ))}
           </ul>
         </div>
+      )}
+
+      {!isEditing && (
+        <ImportRecipe
+          onImported={(imported) => {
+            setForm({
+              title: imported.title,
+              overview: imported.overview,
+              tags: imported.tags.join(', '),
+              instructions: imported.instructions,
+              image: imported.image,
+              servings: imported.servings?.toString() ?? '',
+              prepMinutes: imported.prepMinutes?.toString() ?? '',
+              cookMinutes: imported.cookMinutes?.toString() ?? '',
+              difficulty: '',
+              cuisine: imported.cuisine,
+            });
+            setIngredients(
+              imported.ingredients.length > 0 ? imported.ingredients : [EMPTY_INGREDIENT],
+            );
+            setErrors([]);
+          }}
+        />
       )}
 
       <div className="field">

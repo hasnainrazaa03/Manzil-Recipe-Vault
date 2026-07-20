@@ -15,6 +15,7 @@ import type {
   Relationship,
   ServerShoppingItem,
   ServerShoppingList,
+  ImportedRecipe,
   Paginated,
   ProfileInput,
   ProfileResponse,
@@ -314,6 +315,10 @@ export const api = {
 
     clear: () => request<{ items: [] }>('/api/shopping-list', { method: 'DELETE', auth: 'required' }),
   },
+
+  /** Reads a recipe from a URL. Returns fields to review — saves nothing. */
+  importRecipe: (url: string) =>
+    request<ImportedRecipe>('/api/import', { method: 'POST', body: { url }, auth: 'required' }),
 
   uploads: {
     signature: (kind: 'recipe' | 'avatar') =>

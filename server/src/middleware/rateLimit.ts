@@ -58,3 +58,15 @@ export const uploadLimiter = make({
   limit: 40,
   message: 'Upload limit reached. Please try again later.',
 });
+
+/**
+ * Recipe import. The tightest limit in the app by a wide margin, because every
+ * call makes an outbound HTTP request from our network to a host the caller
+ * chose — so it is both the most expensive endpoint and the one most worth
+ * abusing.
+ */
+export const importLimiter = make({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  message: 'Too many imports. Please wait a few minutes before trying another link.',
+});

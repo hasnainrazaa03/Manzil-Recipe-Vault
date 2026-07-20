@@ -4727,3 +4727,91 @@ mark {
     transform: none;
   }
 }
+
+/* ==========================================================================
+   IMPORT FROM A LINK
+   --------------------------------------------------------------------------
+   Sits at the top of the recipe form, before the fields it fills in. Styled as
+   an inset panel rather than another field group so it reads as a shortcut
+   offered *to* the form rather than a part of it — it writes the fields below
+   and then has nothing more to do.
+   ========================================================================== */
+
+.import-recipe {
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-5);
+  background-color: var(--surface-sunken);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.import-recipe-intro {
+  display: flex;
+  gap: var(--spacing-3);
+  align-items: flex-start;
+  margin-bottom: var(--spacing-3);
+  color: var(--secondary-text);
+}
+
+.import-recipe-intro h3 {
+  margin: 0 0 var(--spacing-1);
+  font-size: var(--text-h3);
+  color: var(--primary-text);
+}
+
+.import-recipe-intro .field-hint {
+  margin: 0;
+}
+
+.import-recipe-row {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: stretch;
+}
+
+.import-recipe-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.import-recipe-row button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* The URL is long and the button label is short; stacking keeps the field
+   usable rather than shrinking it to nothing. */
+@media (max-width: 560px) {
+  .import-recipe-row {
+    flex-direction: column;
+  }
+}
+
+.import-recipe-error,
+.import-recipe-source {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: flex-start;
+  margin: var(--spacing-3) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.import-recipe-error {
+  color: var(--danger-text);
+}
+
+.import-recipe-source {
+  color: var(--secondary-text);
+}
+
+.import-recipe-source a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.import-recipe-error .icon,
+.import-recipe-source .icon {
+  flex: 0 0 auto;
+  margin-top: 0.1em;
+}

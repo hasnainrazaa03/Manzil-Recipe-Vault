@@ -251,3 +251,19 @@ export interface ServerShoppingList {
   items: ServerShoppingItem[];
   updatedAt: string | null;
 }
+
+export interface ImportedRecipe {
+  title: string;
+  overview: string;
+  image: string;
+  ingredients: Ingredient[];
+  instructions: string;
+  tags: string[];
+  servings: number | null;
+  prepMinutes: number | null;
+  cookMinutes: number | null;
+  cuisine: string;
+  /** Kept for attribution — shown to the user before they save. */
+  sourceUrl: string;
+  sourceName: string;
+}

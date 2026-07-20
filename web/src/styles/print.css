@@ -17,6 +17,11 @@
    ========================================================================== */
 
 @media print {
+  /* A shortcut for filling the form in; meaningless on paper. */
+  .import-recipe {
+    display: none !important;
+  }
+
   @page {
     margin: 1.5cm;
   }

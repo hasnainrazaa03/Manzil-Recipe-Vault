@@ -330,6 +330,89 @@ append-only and a restore can itself be undone.
   "chiken" finds nothing. Adds trigram-ish fuzzy fallback when a text search
   returns nothing, plus ingredient-name matching.
 
+### Wave 6 — Getting recipes in, and cooking from them
+
+Wave 5 finished the plumbing. The app's actual problem now is that it is empty:
+adding a recipe means retyping one, and almost nobody will. These two features
+address that, and then make the collection useful across a week.
+
+#### 6.1 Import from a URL `[x]`
+
+Paste a link to a recipe on any food blog and have it filled in.
+
+This is tractable because most recipe sites already publish machine-readable
+data: **schema.org/Recipe as JSON-LD**, which Google requires for the recipe
+rich result, so essentially every site that wants search traffic has it. The
+importer fetches the page, reads that block, and maps it onto our fields.
+
+**The interesting part is not the parsing, it is the fetching.** A server that
+retrieves an arbitrary user-supplied URL is a server-side request forgery
+primitive: `http://169.254.169.254/` reaches cloud instance metadata,
+`http://localhost:27017` reaches our own database, and a redirect can turn a
+public URL into either after the check has passed. The fetcher therefore:
+
+- allows only `http:` and `https:`;
+- resolves the hostname and **rejects private, loopback, link-local and
+  reserved ranges** — in both IPv4 and IPv6, including the mapped forms;
+- **re-checks after every redirect**, since that is the whole point of the
+  attack, and caps the redirect count;
+- caps response size and total time, so a slow-loris or an endless stream
+  cannot hold a worker;
+- accepts only HTML content types;
+- is rate limited harder than any other endpoint, because each call is an
+  outbound request made on our behalf.
+
+Imported content is sanitised on the way in exactly like typed content. Nothing
+about "we fetched it" makes it trustworthy.
+
+Two bypasses turned up while attacking the first version of this guard, both
+worth remembering because both *looked* fine:
+
+- **IPv6 literals were blocked by accident.** `new URL()` keeps the brackets, so
+  `isIP('[::1]')` is 0, the address fell through to a DNS lookup, and the lookup
+  happened to fail. It was refused — for entirely the wrong reason, and only
+  until something upstream changed.
+- **`::ffff:127.0.0.1` got through.** `new URL()` normalises it to
+  `::ffff:7f00:1`, which matches no textual rule for loopback but routes
+  straight to it. Textual matching on a compressed IPv6 address is not sound;
+  the address is now expanded to its eight groups and the bits are compared.
+
+The import **fills in the form rather than saving a recipe** — the user reviews
+and edits before anything is written. That keeps a bad parse from silently
+creating rubbish, and keeps attribution honest: the source URL is stored and
+shown.
+
+#### 6.2 Meal planner `[ ]`
+
+**Not started.** Designed below and deliberately left for a separate pass —
+shipping one complete feature beats two half-finished ones, and the importer is
+the one that unblocks everything else by making the app worth filling.
+
+
+A week view. Assign recipes to days, see the week at a glance, and turn the
+whole plan into one shopping list.
+
+```
+MealPlan {
+  user      uid, indexed with weekStart
+  weekStart date, normalised to Monday
+  entries   [{ date, mealType: breakfast|lunch|dinner, recipe }]
+}
+```
+
+- `GET|PUT /api/meal-plan?week=YYYY-MM-DD`
+- `POST /api/meal-plan/shopping-list` — every ingredient in the week, added to
+  the shopping list
+
+This is where the earlier features compound: scaling means a plan can serve a
+different number of people than the recipe was written for, and the shopping
+list already merges rather than replaces, so building a week's list twice does
+not duplicate it.
+
+**Weeks start on Monday and are stored as a plain date**, not a timestamp. A
+plan is a fact about a calendar, not about an instant, and storing an instant
+means a plan made in one timezone lands on the wrong day in another.
+
 ---
 
 ## 4. Sequencing
