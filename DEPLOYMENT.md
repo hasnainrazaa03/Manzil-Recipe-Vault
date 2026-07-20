@@ -119,6 +119,14 @@ If you would rather discard the old environment entirely than copy values across
 
 Note that the *connection string* is not a secret you need to preserve — Atlas shows it any time (**Connect → Drivers**), and you can reset the database user's password under **Database Access → Edit → Edit Password** without touching the data. So you can safely discard `MONGO_URI` too, as long as the cluster itself survives.
 
+Before anything else, verify you can reach it and find out which database your recipes are actually in:
+
+```bash
+cd server && npm run check:db
+```
+
+It reports the user, host and database your `MONGO_URI` resolves to, lists every database with its collections and document counts, marks the one holding `recipes`, and turns the usual failures — wrong password, unencoded characters in the password, IP allow-list — into a specific instruction rather than `bad auth`.
+
 Back it up first regardless:
 
 ```bash
