@@ -16,6 +16,8 @@ import type {
   ServerShoppingItem,
   ServerShoppingList,
   ImportedRecipe,
+  MealPlanEntryInput,
+  MealPlanWeek,
   Paginated,
   ProfileInput,
   ProfileResponse,
@@ -319,6 +321,37 @@ export const api = {
   /** Reads a recipe from a URL. Returns fields to review — saves nothing. */
   importRecipe: (url: string) =>
     request<ImportedRecipe>('/api/import', { method: 'POST', body: { url }, auth: 'required' }),
+
+  mealPlan: {
+    week: (week?: string, signal?: AbortSignal) =>
+      request<MealPlanWeek>(`/api/meal-plan${toQuery({ week })}`, { auth: 'required', signal }),
+
+    addEntry: (entry: MealPlanEntryInput) =>
+      request<MealPlanWeek>('/api/meal-plan/entries', {
+        method: 'POST',
+        body: entry,
+        auth: 'required',
+      }),
+
+    updateEntry: (entryId: string, servings: number | null) =>
+      request<MealPlanWeek>(`/api/meal-plan/entries/${entryId}`, {
+        method: 'PATCH',
+        body: { servings },
+        auth: 'required',
+      }),
+
+    removeEntry: (entryId: string) =>
+      request<MealPlanWeek>(`/api/meal-plan/entries/${entryId}`, {
+        method: 'DELETE',
+        auth: 'required',
+      }),
+
+    toShoppingList: (week: string) =>
+      request<{ items: ServerShoppingItem[]; added: number; meals: number }>(
+        `/api/meal-plan/shopping-list${toQuery({ week })}`,
+        { method: 'POST', auth: 'required' },
+      ),
+  },
 
   uploads: {
     signature: (kind: 'recipe' | 'avatar') =>

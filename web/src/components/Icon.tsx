@@ -49,7 +49,8 @@ export type IconName =
   | 'sparkles'
   | 'history'
   | 'play'
-  | 'link';
+  | 'link'
+  | 'calendar';
 
 const PATHS: Record<IconName, string> = {
   search: 'M11 3a8 8 0 1 0 4.9 14.32l4.39 4.39 1.42-1.42-4.39-4.39A8 8 0 0 0 11 3Zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Z',
@@ -107,6 +108,7 @@ const PATHS: Record<IconName, string> = {
   history:
     'M13 3a9 9 0 0 0-9 9H1l4 4 4-4H6a7 7 0 1 1 2 4.9l-1.4 1.5A9 9 0 1 0 13 3Zm-1 4v6l5 2.9.8-1.7-3.8-2.2V7H12Z',
   play: 'M8 5v14l11-7L8 5Z',
+  calendar: 'M7 2v2h10V2h2v2h2a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h2V2h2Zm13 8H4v10h16V10Zm0-4H4v2h16V6ZM7 12h4v4H7v-4Z',
   link: 'M3.9 12a5.1 5.1 0 0 1 5.1-5.1h4v1.9H9a3.2 3.2 0 0 0 0 6.4h4V17H9A5.1 5.1 0 0 1 3.9 12Zm4.6-1h7v2h-7v-2Zm6.5-4.1h4a5.1 5.1 0 1 1 0 10.2h-4v-1.9h4a3.2 3.2 0 0 0 0-6.4h-4V6.9Z',
 };
 

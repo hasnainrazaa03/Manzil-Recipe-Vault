@@ -132,3 +132,96 @@ The implemented rule is the better one and its reasoning is written down
 twice"). `tests/shopping-list.test.ts` tests the implementation, and no code
 change was wanted. `DESIGN.md` is being updated to describe the per-field
 resolution.
+
+---
+
+# Wave 6
+
+Findings from the recipe-import test pass (`tests/safe-fetch.test.ts`,
+`tests/parse-recipe.test.ts`, `tests/import.test.ts`).
+
+**Open:** W6-1, W6-2. Neither is a security issue — the SSRF guard in
+`src/lib/safeFetch.ts` refused every bypass attempted against it, including all
+the mapped-IPv6 and redirect cases. Both are parsing gaps that make the importer
+quietly give up on pages it could read.
+
+## W6-1 — A Recipe inside a top-level JSON-LD array is never found  `[OPEN]`
+
+**Severity:** medium — no data loss and nothing unsafe, but a common real-world
+page shape imports as "no recipe found" and the user retypes it by hand, which
+is the exact outcome the feature exists to prevent.
+
+**Where:** `src/lib/parseRecipe.ts`, `findRecipeNode`.
+
+**Test:** `tests/parse-recipe.test.ts`, `'finds a Recipe inside a bare array'`
+(`.skip`ped). The test immediately after it pins the current behaviour, so when
+this is fixed that one fails and points here.
+
+### Cause
+
+Plenty of sites ship a single block containing an array:
+
+```html
+<script type="application/ld+json">
+[{"@type":"Organization", ...}, {"@type":"Recipe", ...}]
+</script>
+```
+
+`jsonLdBlocks` parses that into one element — an array — and hands the list of
+blocks to `findRecipeNode`. The loop there does:
+
+```ts
+for (const entry of toArray(value)) {
+  if (!isObject(entry)) continue;   // <-- an array is not an object here
+  ...
+}
+```
+
+`isObject` explicitly excludes arrays (`!Array.isArray(value)`), so a block that
+*is* an array is skipped before anything inside it is looked at. The `@graph`
+and `mainEntity` recursion never fires either, because those are read off
+`entry`, which was already discarded.
+
+The same recipe split across two separate `<script>` blocks *is* found, which is
+why this is easy to miss: only the single-block-array shape fails.
+
+### Suggested fix
+
+Recurse into arrays rather than skipping them — e.g. in the loop, when
+`Array.isArray(entry)`, call `findRecipeNode(entry, depth + 1)` before the
+`isObject` guard. The existing depth cap of 6 still bounds it.
+
+## W6-2 — `QuantitativeValue.value` is not read  `[OPEN]`
+
+**Severity:** low — one optional field (`servings`) is dropped on the minority of
+sites that use this shape. Nothing else is affected.
+
+**Where:** `src/lib/parseRecipe.ts`, `firstString`.
+
+**Test:** `tests/parse-recipe.test.ts`, `'reads a QuantitativeValue wrapper'`
+(`.skip`ped).
+
+### Cause
+
+`firstString` unwraps objects by trying `@value`, `name`, `url` and `text`.
+schema.org's `QuantitativeValue` — a legal `recipeYield` — carries the number in
+`value`:
+
+```json
+"recipeYield": { "@type": "QuantitativeValue", "value": "12", "unitText": "servings" }
+```
+
+so `parseServings` sees an empty string and returns `null`. Adding `value` to
+the chain in `firstString` would cover it.
+
+## Not a bug, but worth writing down
+
+`POST /api/import` normalises anything without an `http(s)://` prefix by
+prepending `https://`. A `file:` or `gopher:` URL therefore never reaches the
+`bad_protocol` check in `fetchPublicPage` — `file:///etc/passwd` becomes
+`https://file:///etc/passwd` and is refused as `dns_failed` instead. The refusal
+is correct and the normalisation is not bypassable (`localhost:27017`,
+`169.254.169.254/latest/meta-data/` and `https://host@127.0.0.1/` all still land
+on `blocked_address`), but the code the client sees is not the one the URL
+suggests. `tests/import.test.ts` asserts the actual codes so a change here is
+visible.

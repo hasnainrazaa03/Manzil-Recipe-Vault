@@ -382,11 +382,7 @@ and edits before anything is written. That keeps a bad parse from silently
 creating rubbish, and keeps attribution honest: the source URL is stored and
 shown.
 
-#### 6.2 Meal planner `[ ]`
-
-**Not started.** Designed below and deliberately left for a separate pass —
-shipping one complete feature beats two half-finished ones, and the importer is
-the one that unblocks everything else by making the app worth filling.
+#### 6.2 Meal planner `[x]`
 
 
 A week view. Assign recipes to days, see the week at a glance, and turn the
@@ -409,9 +405,15 @@ different number of people than the recipe was written for, and the shopping
 list already merges rather than replaces, so building a week's list twice does
 not duplicate it.
 
-**Weeks start on Monday and are stored as a plain date**, not a timestamp. A
-plan is a fact about a calendar, not about an instant, and storing an instant
-means a plan made in one timezone lands on the wrong day in another.
+**Weeks start on Monday and every date is a `YYYY-MM-DD` string**, never a
+`Date`. A plan is a fact about a calendar, not about an instant: a plan made at
+9pm in Karachi is the previous afternoon in New York, so a stored timestamp
+moves Tuesday's biryani to Monday for the second reader. No `Date` object is
+serialised anywhere in this feature, and the helpers are verified to return
+identical results under UTC+14 and UTC-11.
+
+Sunday belongs to the week that *started* the previous Monday — the off-by-one
+that every week-based feature gets wrong at least once.
 
 ---
 

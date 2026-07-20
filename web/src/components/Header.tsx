@@ -62,6 +62,9 @@ export function Header({ onOpenPalette }: { onOpenPalette?: () => void }) {
             <NavLink to="/collections" className="nav-link">
               Collections
             </NavLink>
+            <NavLink to="/meal-plan" className="nav-link">
+              Plan
+            </NavLink>
             <NavLink to="/saved-recipes" className="nav-link">
               Saved
             </NavLink>

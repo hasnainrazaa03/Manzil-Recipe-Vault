@@ -17,6 +17,7 @@ import { Lightbox } from '../components/Lightbox';
 import { ReadingProgress } from '../components/ReadingProgress';
 import { VersionHistory } from '../components/VersionHistory';
 import { AddToCollectionButton } from '../components/AddToCollectionButton';
+import { AddToMealPlanButton } from '../components/AddToMealPlanButton';
 
 import { useAuth } from '../context/AuthContext';
 import { useRecipeEditor } from '../context/RecipeEditorContext';
@@ -261,6 +262,8 @@ export default function RecipeDetailPage() {
           )}
 
           <AddToCollectionButton recipeId={recipe._id} recipeTitle={recipe.title} />
+
+          {user && <AddToMealPlanButton recipeId={recipe._id} recipeTitle={recipe.title} />}
 
           {isAuthor && (
             <>

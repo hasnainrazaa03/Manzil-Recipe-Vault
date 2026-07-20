@@ -17,6 +17,24 @@
    ========================================================================== */
 
 @media print {
+  /* A week on paper is a useful thing to carry; its controls are not. */
+  .meal-plan-weeks,
+  .meal-plan-entry-actions,
+  .meal-plan-header .btn-primary {
+    display: none !important;
+  }
+
+  .meal-plan-grid {
+    display: block !important;
+  }
+
+  .meal-plan-day {
+    break-inside: avoid;
+    margin-bottom: 0.5cm;
+    border: 1px solid #000 !important;
+    box-shadow: none !important;
+  }
+
   /* A shortcut for filling the form in; meaningless on paper. */
   .import-recipe {
     display: none !important;

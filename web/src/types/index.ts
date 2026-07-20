@@ -267,3 +267,29 @@ export interface ImportedRecipe {
   sourceUrl: string;
   sourceName: string;
 }
+
+export type MealType = 'breakfast' | 'lunch' | 'dinner';
+
+export interface MealPlanEntry {
+  _id: string;
+  /** `YYYY-MM-DD` — a calendar day, never a timestamp. */
+  date: string;
+  mealType: MealType;
+  /** Null means "as the recipe was written". */
+  servings: number | null;
+  recipe: RecipeSummary;
+}
+
+export interface MealPlanWeek {
+  weekStart: string;
+  /** The seven dates of the week, Monday first. */
+  days: string[];
+  entries: MealPlanEntry[];
+}
+
+export interface MealPlanEntryInput {
+  date: string;
+  mealType: MealType;
+  recipe: string;
+  servings?: number | null;
+}

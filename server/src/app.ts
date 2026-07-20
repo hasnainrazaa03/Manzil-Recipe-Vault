@@ -15,6 +15,7 @@ import collectionRoutes from './routes/collections.js';
 import socialRoutes from './routes/social.js';
 import shoppingListRoutes from './routes/shopping-list.js';
 import importRoutes from './routes/import.js';
+import mealPlanRoutes from './routes/meal-plan.js';
 
 /**
  * Builds the Express app without starting it or touching the database, so
@@ -80,6 +81,7 @@ export function createApp(): Express {
   app.use('/api/social', socialRoutes);
   app.use('/api/shopping-list', shoppingListRoutes);
   app.use('/api/import', importRoutes);
+  app.use('/api/meal-plan', mealPlanRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

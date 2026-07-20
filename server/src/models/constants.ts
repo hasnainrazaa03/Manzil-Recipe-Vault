@@ -38,6 +38,8 @@ export const LIMITS = {
   shoppingItems: 300,
   /** A profile cannot follow more people than this. */
   followingPerUser: 5_000,
+  /** Three meals a day over a week, with room for more than one dish each. */
+  mealPlanEntries: 50,
 } as const;
 
 export const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;

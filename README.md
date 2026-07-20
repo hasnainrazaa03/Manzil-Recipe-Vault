@@ -149,6 +149,7 @@ See [`DESIGN.md`](DESIGN.md) for the product plan and the reasoning behind each 
 - **Command palette** — `⌘K` to search recipes or jump anywhere. `?` lists every shortcut.
 - **Discovery** — search across titles, ingredients and tags; filter by tag, cuisine, difficulty and total time; sort by rating, popularity or speed.
 - **Dark mode**, WCAG AA in both themes, full keyboard operation, and a print stylesheet that turns any recipe into a clean card.
+- **Meal planner** — assign recipes to days, then turn the whole week into one shopping list, with quantities scaled to how many you are cooking for.
 - **Import from a link** — paste a recipe URL and the form fills itself in from the page's structured data, for you to check before saving.
 - **Collections** — group recipes into "Weeknight dinners" or "Eid", kept private or shared by link.
 - **Follow cooks** and see their new recipes in a feed, with suggestions when you follow nobody yet.

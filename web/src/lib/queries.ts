@@ -9,6 +9,8 @@ import { api } from './api';
 import { useAuth } from '../context/AuthContext';
 import type {
   CollectionInput,
+  MealPlanEntryInput,
+  MealPlanWeek,
   Comment,
   CurrentUser,
   Relationship,
@@ -49,6 +51,7 @@ export const keys = {
 
   versions: (recipeId: string) => ['recipes', recipeId, 'versions'] as const,
   serverShoppingList: ['shopping-list'] as const,
+  mealPlan: (week: string) => ['meal-plan', week] as const,
 };
 
 // === Queries =================================================================
@@ -500,5 +503,58 @@ export function useRestoreVersion(recipeId: string) {
       void client.invalidateQueries({ queryKey: keys.versions(recipeId) });
       void client.invalidateQueries({ queryKey: keys.recipes });
     },
+  });
+}
+
+
+// === Meal planner ============================================================
+
+export function useMealPlan(week: string) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: keys.mealPlan(week),
+    queryFn: ({ signal }) => api.mealPlan.week(week, signal),
+    enabled: Boolean(user),
+    placeholderData: (previous) => previous,
+  });
+}
+
+/**
+ * Every meal-plan mutation returns the whole week, so the response is written
+ * straight into the cache rather than triggering a refetch. The week is small
+ * and the server already assembled it.
+ */
+function useMealPlanMutation<T>(week: string, fn: (input: T) => Promise<MealPlanWeek>) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (updated) => {
+      client.setQueryData(keys.mealPlan(updated.weekStart), updated);
+      if (updated.weekStart !== week) {
+        void client.invalidateQueries({ queryKey: keys.mealPlan(week) });
+      }
+    },
+  });
+}
+
+export function useAddMealPlanEntry(week: string) {
+  return useMealPlanMutation<MealPlanEntryInput>(week, (entry) => api.mealPlan.addEntry(entry));
+}
+
+export function useUpdateMealPlanEntry(week: string) {
+  return useMealPlanMutation<{ entryId: string; servings: number | null }>(week, ({ entryId, servings }) =>
+    api.mealPlan.updateEntry(entryId, servings),
+  );
+}
+
+export function useRemoveMealPlanEntry(week: string) {
+  return useMealPlanMutation<string>(week, (entryId) => api.mealPlan.removeEntry(entryId));
+}
+
+export function useMealPlanToShoppingList(week: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.mealPlan.toShoppingList(week),
+    onSuccess: () => void client.invalidateQueries({ queryKey: keys.serverShoppingList }),
   });
 }

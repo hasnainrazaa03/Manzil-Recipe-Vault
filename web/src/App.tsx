@@ -31,6 +31,7 @@ const CollectionsPage = lazy(() => import('./pages/CollectionsPage'));
 const CollectionDetailPage = lazy(() => import('./pages/CollectionDetailPage'));
 const FeedPage = lazy(() => import('./pages/FeedPage'));
 const FollowListPage = lazy(() => import('./pages/FollowListPage'));
+const MealPlanPage = lazy(() => import('./pages/MealPlanPage'));
 const AuthPage = lazy(() => import('./pages/AuthPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
@@ -80,6 +81,7 @@ export default function App() {
           p: () => user && navigate(`/profile/${user.uid}`),
           f: () => navigate('/feed'),
           c: () => navigate('/collections'),
+          m: () => navigate('/meal-plan'),
         },
       },
     },
@@ -125,6 +127,10 @@ export default function App() {
               <Route
                 path="/collections"
                 element={<ProtectedRoute><CollectionsPage /></ProtectedRoute>}
+              />
+              <Route
+                path="/meal-plan"
+                element={<ProtectedRoute><MealPlanPage /></ProtectedRoute>}
               />
               {/* Public, unlike the collections index. A public collection is
                   meant to be shareable, and the API serves it to anonymous
