@@ -111,3 +111,55 @@ describe('no route is registered twice for the same method', () => {
     expect(seen.size).toBeGreaterThan(0);
   });
 });
+
+describe('response compression', () => {
+  /**
+   * Recipe JSON is the same keys repeated on every row, so it compresses by
+   * roughly 80%. On the free tier the browser and the API are frequently on
+   * different continents and the payload, not the compute, is what the reader
+   * waits on.
+   *
+   * Asserted through the response header rather than by measuring bytes:
+   * supertest transparently decodes the body, so a length comparison would
+   * compare two identical decoded strings and pass whether or not anything was
+   * ever compressed.
+   */
+  it('compresses a response large enough to be worth it', async () => {
+    // Comfortably past compression's default 1 kB threshold, below which it
+    // correctly declines because the gzip header costs more than it saves.
+    for (let index = 0; index < 12; index += 1) {
+      const created = await api()
+        .post('/api/recipes')
+        .set(authHeader('compression-author'))
+        .send({
+          title: `Compressible recipe ${index}`,
+          overview: 'The same words, over and over, which is the point.',
+          ingredients: [{ amount: '200 g', name: 'plain flour' }],
+          instructions: '<p>Repetitive prose compresses well.</p>',
+          tags: ['baking'],
+        });
+      expect(created.status).toBe(201);
+    }
+
+    const res = await api().get('/api/recipes').set('Accept-Encoding', 'gzip');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-encoding']).toBe('gzip');
+    // The premise: a body worth compressing actually came back.
+    expect(res.body.items.length).toBeGreaterThan(0);
+  });
+
+  it('leaves a small response alone rather than paying gzip overhead on it', async () => {
+    const res = await api().get('/').set('Accept-Encoding', 'gzip');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-encoding']).toBeUndefined();
+  });
+
+  it('sends plain bytes to a client that did not ask for gzip', async () => {
+    const res = await api().get('/api/recipes').set('Accept-Encoding', 'identity');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-encoding']).toBeUndefined();
+  });
+});

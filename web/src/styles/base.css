@@ -233,14 +233,31 @@ pre {
    Form controls
    -------------------------------------------------------------------------- */
 
-input[type='text'],
-input[type='email'],
-input[type='password'],
-input[type='url'],
-input[type='search'],
-input:not([type]),
-textarea,
-select {
+/**
+ * Wrapped in `:where()`, which contributes **zero specificity**.
+ *
+ * Written bare, `input[type='search']` scores (0,1,1) and quietly outranks any
+ * single class — so `.search-input` and `.palette-input` were both being
+ * ignored. The `padding` shorthand here overrode `.search-input`'s
+ * `padding-left`, leaving the magnifying glass sitting on top of the
+ * placeholder, and its `border-radius` overrode the pill shape into a
+ * rectangle. Nothing errored; the rules simply lost, which is the failure mode
+ * that makes cascade bugs hard to see in review.
+ *
+ * A base layer is meant to be the value used when nothing else has an opinion,
+ * so zero specificity is what it should have had all along. Anything that needs
+ * to beat these declarations now only has to name the element.
+ */
+:where(
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='url'],
+  input[type='search'],
+  input:not([type]),
+  textarea,
+  select
+) {
   width: 100%;
   padding: var(--spacing-3) var(--spacing-4);
   font-size: 1rem; /* 16px keeps iOS Safari from zooming on focus */
@@ -284,7 +301,8 @@ select:disabled {
   cursor: not-allowed;
 }
 
-input[type='file'] {
+/* Same reasoning as the block above: a default, so no specificity of its own. */
+:where(input[type='file']) {
   padding: var(--spacing-2);
   background-color: transparent;
   border-style: dashed;

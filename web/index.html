@@ -33,6 +33,32 @@
       glyphs. Icons are now inline SVG in src/components/Icon.tsx.
     -->
 
+    <!--
+      Inter, discovered in the HTML rather than behind an @import in the app
+      CSS. preconnect opens the connection to both hosts (the CSS and the font
+      files are served from different origins) while the HTML is still being
+      parsed, and `media="print"` + the onload swap keeps the stylesheet off
+      the critical path, so text paints in the fallback immediately instead of
+      waiting on a third-party round trip. `display=swap` in the URL means the
+      swap-in never blanks the text.
+      The <noscript> copy keeps the font for readers without JavaScript, who
+      would otherwise never run the onload handler.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      />
+    </noscript>
+
     <script>
       // Applies the saved theme before first paint. Without this the page
       // renders light and then flips, which is worse than either theme.

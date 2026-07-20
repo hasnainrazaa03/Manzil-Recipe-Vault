@@ -260,36 +260,62 @@ header {
   margin-bottom: var(--spacing-6);
 }
 
+/**
+ * A segmented control, not two loose pills.
+ *
+ * Both segments live on one recessed track, so the pair reads as a single
+ * either/or rather than two buttons that happen to sit near each other. The
+ * track also gives the selected segment something to be inset *within*, which
+ * is what makes the selection legible without shouting.
+ */
 .view-toggle {
+  display: inline-flex;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1);
+  margin-inline: auto;
+  margin-bottom: var(--spacing-6);
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+}
+
+/* `inline-flex` shrink-wraps, so the element needs a block context to be
+   centred by `margin-inline: auto`. */
+.view-toggle-row {
   display: flex;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: var(--spacing-3);
-  margin-bottom: var(--spacing-6);
 }
 
 .view-toggle button {
   padding: var(--spacing-2) var(--spacing-5);
-  font-weight: 500;
+  /**
+   * Constant across both states, deliberately.
+   *
+   * Weighting the selected segment more heavily made it wider than the
+   * unselected one, so every toggle resized both segments and shifted the row
+   * — a wobble on a control whose whole job is to sit still. Selection is
+   * carried by colour and surface instead, which cost no width.
+   */
+  font-weight: 600;
   color: var(--secondary-text);
-  background-color: var(--card-background);
-  border: 1px solid var(--border-strong);
+  background-color: transparent;
+  border: 0;
   border-radius: var(--radius-full);
   cursor: pointer;
+  white-space: nowrap;
   transition: background-color var(--transition), color var(--transition),
-    border-color var(--transition);
+    box-shadow var(--transition);
 }
 
-.view-toggle button:hover {
-  background-color: var(--surface-hover);
+.view-toggle button:hover:not(.active) {
   color: var(--primary-text);
+  background-color: var(--surface-hover);
 }
 
 .view-toggle button.active {
-  font-weight: 600;
   color: var(--button-primary-text);
   background-color: var(--button-primary-bg);
-  border-color: var(--button-primary-bg);
+  box-shadow: var(--shadow-sm);
 }
 
 .filters {

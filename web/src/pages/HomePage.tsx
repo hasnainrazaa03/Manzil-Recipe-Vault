@@ -190,26 +190,30 @@ export default function HomePage() {
         </>
       )}
 
-      <nav className="view-toggle" aria-label="Recipe collection">
-        <button
-          type="button"
-          onClick={() => updateParams({ view: null })}
-          className={view === 'all' ? 'active' : ''}
-          aria-pressed={view === 'all'}
-        >
-          All recipes
-        </button>
-        {user && (
-          <button
-            type="button"
-            onClick={() => updateParams({ view: 'mine' })}
-            className={view === 'mine' ? 'active' : ''}
-            aria-pressed={view === 'mine'}
-          >
-            My recipes
-          </button>
-        )}
-      </nav>
+      {/* Signed out there is only one collection to look at, and a segmented
+          control with a single segment is a label pretending to be a choice. */}
+      {user && (
+        <div className="view-toggle-row">
+          <nav className="view-toggle" aria-label="Recipe collection">
+            <button
+              type="button"
+              onClick={() => updateParams({ view: null })}
+              className={view === 'all' ? 'active' : ''}
+              aria-pressed={view === 'all'}
+            >
+              All recipes
+            </button>
+            <button
+              type="button"
+              onClick={() => updateParams({ view: 'mine' })}
+              className={view === 'mine' ? 'active' : ''}
+              aria-pressed={view === 'mine'}
+            >
+              My recipes
+            </button>
+          </nav>
+        </div>
+      )}
 
       <SearchFilters
         search={search}

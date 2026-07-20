@@ -64,6 +64,16 @@ Four levels only: flat (page), raised (card), floating (dropdown, popover), over
 - Icon-only controls are at least 44×44 and carry an accessible name.
 - The body never scrolls horizontally.
 - Both themes meet WCAG AA. New tokens get checked, not assumed.
+- **The base layer carries no specificity.** Element defaults go inside
+  `:where()`. Written bare, `input[type='search']` outranks any single class,
+  and a component's own styles lose without warning — which is how the search
+  field spent months as a rectangle with the icon on top of its placeholder.
+  Enforced by `web/src/styles/__tests__/cascade.test.ts`.
+- **A control does not change size when you use it.** Selected and unselected
+  states differ in colour and surface, never in font weight or padding: heavier
+  type is wider type, and a toggle that resizes shifts everything beside it.
+- **A choice of one is not a choice.** A segmented control with a single
+  segment is a label; don't draw it.
 
 ---
 

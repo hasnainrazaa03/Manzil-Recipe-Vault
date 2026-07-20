@@ -263,3 +263,51 @@ found bugs in five-year-old code, this one found bugs in five-day-old code.
 - **Not rotating credentials.** The Firebase web config in history is public-by-design and low-risk, but Firebase Console **authorized domains** and the **Cloudinary unsigned preset** should be reviewed by hand — the preset in particular should be switched to signed-only in the Cloudinary dashboard once the code change lands, and that is a dashboard action I cannot perform.
 - **Migrating comments out of the recipe document** into their own collection is the correct long-term fix for P5. It requires a data migration against production data, so this plan bounds the array and paginates instead.
 - **No auth-provider change.** Firebase Auth stays.
+
+---
+
+## 7. Third pass — rendering and perceived speed (2026-07-20)
+
+Prompted by a screenshot: the magnifying glass sitting on top of the search
+placeholder, the collection toggle reading as two loose pills, and "there is
+slowness in the UI/UX".
+
+### Fixed — the cascade
+
+| # | Sev | Finding |
+|---|---|---|
+| C1 | **S2** | **Two components' styles had never applied.** The base layer styles form controls with `input[type='search']` and friends — (0,1,1), which silently outranks any single class. `.search-input` asked for a pill and for room to the left of the icon; it got a rectangle and the icon landed on top of the placeholder, which is what the screenshot shows. `.palette-input` asked for no chrome at all — its own comment says *"the row is the field"* — and rendered as a bordered, sunken box inside the row. Nothing errored. The declarations were parsed, applied, and beaten. The base block is now wrapped in `:where()`, contributing zero specificity, which is what a layer of defaults should always have had. |
+
+### Fixed — the collection toggle
+
+| # | Sev | Finding |
+|---|---|---|
+| C2 | S3 | **The toggle wobbled when you used it.** The selected segment was set in a heavier weight than the unselected one, so it measured wider, so every click resized both segments and shifted the row — on a control whose whole job is to sit still. Weight is now constant and selection is carried by colour and surface. |
+| C3 | S3 | **Two loose pills, not one control.** Rebuilt as a segmented control on a single recessed track, so the pair reads as one either/or. |
+| C4 | S4 | **It rendered signed out**, where "My recipes" does not exist — a segmented control with one segment is a label pretending to be a choice. It is now not drawn at all. |
+
+### Fixed — perceived speed
+
+| # | Sev | Finding |
+|---|---|---|
+| C5 | S2 | **The webfont was loaded the slowest way available.** `@import url(fonts.googleapis.com…)` sat inside the app stylesheet, so the browser could not even discover the request until it had downloaded and parsed that stylesheet — the font CSS and then the font file queued up behind it. Three chained, render-blocking round trips before text could paint. The request now starts from `index.html` with `preconnect` warming both hosts, off the critical path. |
+| C6 | S2 | **API responses were uncompressed.** Recipe JSON is the same keys on every row and compresses by roughly 80%. `compression()` now runs ahead of the routes. |
+
+### Checked, and *not* changed
+
+- **Client-side data fetching was already right.** `staleTime`, `placeholderData: (previous) => previous` on the list, longer staleness on tags and cuisines, no refetch on focus. Routes are already lazy and Tiptap is already in its own chunk.
+- **The 523 kB main chunk (146 kB gzipped) is React, the router, Query and Firebase.** Splitting it further is exactly what caused the blank-page outage in §4, and the `check-bundle` guard exists because of it. Not touching it for a marginal gain.
+- **The dominant latency is almost certainly the free-tier cold start**, not the code. A Render free instance sleeps after 15 minutes and takes the better part of a minute to answer the first request. No change in this repo fixes that; keeping the instance warm or paying for it does.
+
+### The pattern this belongs to
+
+Every finding above is invisible to `tsc`, to `eslint`, to the test suite, and
+to review. A CSS rule that loses the cascade does not warn — it is parsed,
+applied, and overruled. The countermeasure is `web/src/styles/__tests__/cascade.test.ts`,
+which asserts the *property* rather than any particular rule: nothing in the
+base layer may set chrome from a selector a single class cannot beat.
+
+Its first version passed while the bug was live, because it matched the whole
+selector head against a single-selector shape and the offending rule was a
+comma-separated list. It was fixed to split first, and both assertions were
+then confirmed to fail against the un-wrapped stylesheet before being trusted.

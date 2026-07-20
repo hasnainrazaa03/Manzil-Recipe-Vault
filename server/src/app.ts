@@ -1,5 +1,6 @@
 import express, { type Express } from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import type { IncomingMessage } from 'node:http';
@@ -31,6 +32,20 @@ export function createApp(): Express {
   app.disable('x-powered-by');
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+  /**
+   * gzip every response worth compressing.
+   *
+   * Recipe JSON is repetitive — the same keys on every row — and a page of
+   * twelve recipes compresses by roughly 80%. On the free tier the API and the
+   * browser are often on different continents, so the saving lands where it is
+   * felt most: bytes on a slow link, not CPU on an idle box.
+   *
+   * Placed before the routes so it wraps everything downstream, and after
+   * helmet so the security headers are never themselves the thing being
+   * negotiated.
+   */
+  app.use(compression());
 
   app.use(
     cors({
