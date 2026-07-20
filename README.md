@@ -97,7 +97,7 @@ Full instructions, including how to take the existing deployment down first and 
 
 Any Node host works. Point it at the `server/` directory with:
 
-- **Build:** `npm ci && npm run build`
+- **Build:** `npm ci --include=dev && npm run build`
 - **Start:** `npm start`
 - **Health check:** `GET /health` — returns 200 when the database is connected, 503 otherwise.
 

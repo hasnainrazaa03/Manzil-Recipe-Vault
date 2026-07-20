@@ -23,29 +23,31 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
-    rollupOptions: {
-      output: {
-        /**
-         * Firebase and the editor are large and change rarely, so they belong
-         * in their own chunks — a deploy that only touches app code then leaves
-         * them cached.
-         *
-         * The function form rather than the object form: the object form silently
-         * produced no split here, because these packages are reached through
-         * subpath entries (`firebase/auth`, `@tiptap/pm/*`) that do not match
-         * the bare specifiers listed against each chunk name.
-         */
-        manualChunks(id) {
-          if (!id.includes('node_modules')) return undefined;
-          if (id.includes('firebase') || id.includes('@firebase')) return 'firebase';
-          if (id.includes('@tiptap') || id.includes('prosemirror')) return 'editor';
-          if (id.includes('react-dom') || id.includes('/react/') || id.includes('react-router')) {
-            return 'react';
-          }
-          return undefined;
-        },
-      },
-    },
+
+    /**
+     * No `manualChunks`. Deliberately.
+     *
+     * Hand-splitting vendors into `react` / `editor` / `firebase` chunks took
+     * the whole site down with a blank page and
+     * `Cannot set properties of undefined (setting 'Children')`.
+     *
+     * React and react-dom are CommonJS, so Rollup synthesises interop helper
+     * modules for them. Those helpers are virtual — they match no path rule —
+     * so they landed in whichever chunk Rollup felt like, which turned out to
+     * be `editor`. That made `react` import `editor` while `editor` imported
+     * `react`: a circular chunk dependency, so the editor chunk evaluated
+     * first and assigned onto a React namespace that did not exist yet.
+     *
+     * Rollup's automatic chunking already gets this right, and the actual win
+     * was never here — it comes from route-level `lazy()` and from deferring
+     * the editor until the recipe dialog opens, which keeps ~357 kB out of the
+     * initial load regardless of how vendors are grouped.
+     *
+     * If vendor splitting is ever revisited, the rule is: every module a chunk
+     * needs, including Rollup's generated helpers, must be assigned with it —
+     * and the built output must be checked for cycles, because the build
+     * succeeds either way.
+     */
   },
   test: {
     globals: true,

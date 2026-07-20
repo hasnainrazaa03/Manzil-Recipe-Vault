@@ -1,0 +1,48 @@
+# Render blueprint for the API.
+#
+# Keeps the build settings in the repository rather than only in the dashboard,
+# where the one that matters is easy to get wrong.
+#
+# To use: Render dashboard -> New -> Blueprint -> point it at this repo. Secrets
+# are marked `sync: false`, so Render prompts for them instead of storing them
+# here.
+
+services:
+  - type: web
+    name: manzil-recipe-vault-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: server
+
+    # `--include=dev` is load-bearing. Render sets NODE_ENV=production, which
+    # makes npm omit devDependencies — and TypeScript and every @types package
+    # live there, so `tsc` compiles against untyped imports and the build fails
+    # with a wall of TS7016 "could not find a declaration file" errors.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Render injects its own PORT. Do not set one — overriding it means the
+      # health check polls a port nothing is listening on.
+
+      - key: MONGO_URI
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      - key: CLOUDINARY_UPLOAD_FOLDER
+        value: manzil-recipe-vault

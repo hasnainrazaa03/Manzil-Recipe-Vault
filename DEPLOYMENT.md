@@ -202,10 +202,12 @@ The API is a TypeScript project now, so it has a build step.
 | Setting | Value |
 |---|---|
 | Root directory | `server` |
-| Build command | `npm ci && npm run build` |
+| Build command | `npm ci --include=dev && npm run build` |
 | Start command | `npm start` |
 | Node version | 20 or newer |
 | Health check path | `/health` |
+
+**`--include=dev` is not optional.** Render sets `NODE_ENV=production`, which makes `npm ci` skip devDependencies — and TypeScript and every `@types` package live there. Without the flag the build fails with a wall of `TS7016: Could not find a declaration file for module 'express'`. There is a [`render.yaml`](render.yaml) blueprint in the repo root with this already set correctly.
 
 Set the environment variables from 1.3, then deploy.
 
