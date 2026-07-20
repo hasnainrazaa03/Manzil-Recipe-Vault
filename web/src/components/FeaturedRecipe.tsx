@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { imageProps } from '../lib/images';
 import { Icon } from './Icon';
 import { StarRating } from './StarRating';
 import { MetadataStrip } from './MetadataStrip';
@@ -36,7 +37,7 @@ export function FeaturedRecipe() {
       <Link to={`/recipe/${recipe._id}`} className="featured-card">
         <div className="featured-image">
           <img
-            src={recipe.image || FALLBACK_IMAGE}
+            {...imageProps(recipe.image || FALLBACK_IMAGE, 'hero')}
             referrerPolicy="no-referrer"
             alt=""
             onError={(event) => {

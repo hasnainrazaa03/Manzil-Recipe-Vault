@@ -193,17 +193,142 @@ Click a recipe image to view it full-size. Escape and backdrop close, focus is t
 
 ---
 
-### Wave 5 — Later, needs server work
+### Wave 5 — Server-side features `[x]`
 
-Documented so the shape is agreed, not scheduled.
+All six shipped. Three bugs were found by the tests written alongside them, each
+of the same species and each worth remembering:
 
-- `[ ]` **Collections** — user-defined groups of saved recipes. New `Collection` model, ownership rules, a share flag.
-- `[ ]` **Server-backed shopping list** — sync across devices, requires a model and merge semantics.
-- `[ ]` **Follow authors + a feed** — a `follows` collection and a fan-out or fan-in feed query.
-- `[ ]` **Recipe versioning** — edit history, "restore this version".
-- `[ ]` **Comments in their own collection** — the last structural fix from `PLAN.md`; needs a data migration.
-- `[ ]` **Image CDN transforms** — serve `srcset` from Cloudinary rather than one full-size image per card.
-- `[ ]` **Full-text search with typo tolerance** — Atlas Search or similar; the current text index is exact-token.
+- a **duplicate route registration** left behind by the comment rewrite, where
+  Express matched the stale handler and served an empty list while the write
+  path looked perfect;
+- a **fan-out still addressing the old shape**, so renaming yourself updated
+  your recipes but left every comment you had ever written showing the old name;
+- a **counter decremented without checking the write took effect**, which let
+  parallel follow toggles drive the follower count to -1, permanently.
+
+The first two are the same failure mode: a schema move leaves code addressing
+the old shape, it keeps reporting success, and any test checking only the half
+that still works passes. Both are now pinned by assertions spanning *both*
+halves — read against write, and stored document against response.
+
+All six, in dependency order. Each is additive; the only one that touches
+existing data is 5.2.
+
+#### 5.1 Collections `[x]`
+
+User-defined groups of saved recipes — "Weeknight dinners", "Eid", "Things I
+keep meaning to try". Saving is currently a single flat list, which stops being
+useful somewhere around thirty recipes.
+
+```
+Collection {
+  owner       uid, indexed
+  name        ≤60 chars
+  description ≤300 chars
+  recipes     [ObjectId]        max 200
+  isPublic    boolean           default false
+  createdAt / updatedAt
+}
+```
+
+- `GET /api/collections?owner=me|<uid>` — own collections, or another user's public ones
+- `POST|PATCH|DELETE /api/collections[/:id]`
+- `PUT /api/collections/:id/recipes/:recipeId` — idempotent toggle
+- Cap: 50 collections per user, 200 recipes each. Both bounded for the same reason comments are.
+
+A collection is **not** a replacement for saving. Saving stays the one-tap
+action; collections are the deliberate organising step on top of it.
+
+#### 5.2 Comments in their own collection `[x]`
+
+The last structural fix from `PLAN.md`. Comments are embedded, so every recipe
+write rewrites the whole array, every detail read loads all of them, and the
+document has a hard 16 MB ceiling that forced a 500-comment cap.
+
+```
+Comment {
+  recipe    ObjectId, indexed with createdAt
+  author    uid, authorName, authorPictureUrl   (denormalised)
+  text      ≤2000 chars
+  parent    ObjectId | null      one level of replies, no deeper
+  editedAt / createdAt
+}
+```
+
+`Recipe.commentCount` stays as a denormalised counter — it is what the card
+renders, and a per-card count query would be one query per card.
+
+**This needs a migration against live data**, so it ships with a reversible
+script: the embedded array is copied, not deleted, until the new path is
+verified in production.
+
+Replies are capped at one level. Arbitrarily deep threading is a moderation
+problem long before it is a feature.
+
+#### 5.3 Follows and a feed `[x]`
+
+```
+Follow { follower uid, following uid, createdAt }   unique on the pair
+```
+
+- `PUT /api/users/:userId/follow` — idempotent toggle
+- `GET /api/users/:userId/followers` and `/following`
+- `GET /api/feed` — recipes from everyone you follow, newest first
+
+Fan-out **on read**, not on write: query the follow list, then the recipes. For
+a personal recipe app this is the right trade — it stays correct with no
+maintenance, and the alternative only pays off at a scale this will not reach.
+
+`followerCount` is denormalised onto the profile so it can be shown without a
+count query.
+
+#### 5.4 Server-backed shopping list `[x]`
+
+The list is currently `localStorage` only, so it does not survive switching
+devices — and the phone in the shop is rarely the machine the recipe was
+browsed on.
+
+```
+ShoppingList { user uid unique, items [...], updatedAt }
+```
+
+**Merge semantics matter more than the model.** Signing in must not silently
+discard a list built while signed out, so on sign-in the local list is merged
+into the server's by item id and the local copy stays as the offline cache. A
+shopping list that loses items is worse than no list.
+
+Conflicts resolve **per field**, not by picking a winning side:
+
+- `checked` is true if *either* copy has it ticked — un-ticking something you
+  already bought is a smaller annoyance than buying it twice.
+- `amount` comes from whichever copy was added more recently, because that is
+  the wording the reader last saw and rescaling changes it.
+- `addedAt` takes the earlier of the two, so ordering reflects when the item
+  first appeared rather than when it last synced.
+
+Nothing is ever dropped.
+
+#### 5.5 Recipe versioning `[x]`
+
+```
+RecipeVersion { recipe ObjectId, version int, snapshot {...}, editedBy, createdAt }
+```
+
+A snapshot on every update, capped at the last 20 per recipe. Surfaces as an
+edit history with a diff and a restore button.
+
+Restoring writes a *new* version rather than rewinding, so history is
+append-only and a restore can itself be undone.
+
+#### 5.6 Responsive images and better search `[x]`
+
+- **`srcset` via Cloudinary transforms.** Cards currently download the full
+  image and scale it in CSS. Cloudinary URLs take inline transforms, so widths
+  can be requested per breakpoint. Applies only to `res.cloudinary.com` URLs —
+  an arbitrary host cannot be transformed, so those fall back to the original.
+- **Search that tolerates a typo.** The current text index is exact-token:
+  "chiken" finds nothing. Adds trigram-ish fuzzy fallback when a text search
+  returns nothing, plus ingredient-name matching.
 
 ---
 

@@ -28,6 +28,16 @@ export const LIMITS = {
    * and any attempt to delete the comments causing the problem.
    */
   commentsPerRecipe: 500,
+
+  // --- Wave 5 ---
+  collectionName: 60,
+  collectionDescription: 300,
+  /** Per user. Bounded for the same reason every other array here is. */
+  collectionsPerUser: 50,
+  recipesPerCollection: 200,
+  shoppingItems: 300,
+  /** A profile cannot follow more people than this. */
+  followingPerUser: 5_000,
 } as const;
 
 export const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;

@@ -1,13 +1,16 @@
 import { Router } from 'express';
-import mongoose, { type FilterQuery } from 'mongoose';
+import type { FilterQuery } from 'mongoose';
 import { Recipe, RECIPE_LIST_PROJECTION } from '../models/Recipe.js';
 import { Profile } from '../models/Profile.js';
+import { Comment } from '../models/Comment.js';
+import { Collection } from '../models/Collection.js';
+import { RecipeVersion, MAX_VERSIONS_PER_RECIPE } from '../models/RecipeVersion.js';
 import { optionalAuth, requireAuth, requireUser } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { interactionLimiter, readLimiter, writeLimiter } from '../middleware/rateLimit.js';
-import { asyncHandler, conflict, forbidden, notFound, unauthorized } from '../lib/errors.js';
+import { asyncHandler, badRequest, forbidden, notFound, unauthorized } from '../lib/errors.js';
 import { escapeRegex } from '../lib/sanitize.js';
-import { publicComment, publicRecipe, publicRecipes } from '../lib/serialize.js';
+import { publicRecipe, publicRecipes } from '../lib/serialize.js';
 import { paginate, paginationQuery } from '../schemas/common.js';
 import {
   commentBody,
@@ -17,9 +20,9 @@ import {
   ratingBody,
   recipeIdParams,
   updateRecipeBody,
+  versionParams,
   type ListRecipesQuery,
 } from '../schemas/recipe.js';
-import { LIMITS } from '../models/constants.js';
 
 const router = Router();
 
@@ -30,6 +33,60 @@ const router = Router();
 export function displayNameFrom(value?: string): string {
   const name = value?.split('@')[0]?.trim();
   return name && name.length > 0 ? name : 'Anonymous cook';
+}
+
+/**
+ * Records the current state of a recipe as a new version.
+ *
+ * Called before an edit is applied, so version N is what the recipe looked like
+ * before edit N — which is the thing a reader wants to restore. History is
+ * append-only and capped; a restore writes a new version rather than rewinding,
+ * so the restore itself can be undone.
+ */
+async function saveVersion(
+  recipe: { _id: unknown; toObject: () => Record<string, unknown> },
+  editedBy: string,
+  restoredFrom: number | null = null,
+): Promise<void> {
+  const doc = recipe.toObject();
+  const latest = await RecipeVersion.findOne({ recipe: recipe._id })
+    .sort({ version: -1 })
+    .select('version')
+    .lean();
+
+  const version = (latest?.version ?? 0) + 1;
+
+  await RecipeVersion.create({
+    recipe: recipe._id,
+    version,
+    editedBy,
+    restoredFrom,
+    snapshot: {
+      title: doc.title,
+      image: doc.image,
+      overview: doc.overview,
+      ingredients: doc.ingredients,
+      instructions: doc.instructions,
+      tags: doc.tags,
+      servings: doc.servings ?? null,
+      prepMinutes: doc.prepMinutes ?? null,
+      cookMinutes: doc.cookMinutes ?? null,
+      difficulty: doc.difficulty ?? null,
+      cuisine: doc.cuisine ?? '',
+    },
+  });
+
+  // Keep the history bounded. Unbounded, an actively edited recipe accumulates
+  // a snapshot per save forever.
+  const excess = await RecipeVersion.find({ recipe: recipe._id })
+    .sort({ version: -1 })
+    .skip(MAX_VERSIONS_PER_RECIPE)
+    .select('_id')
+    .lean();
+
+  if (excess.length > 0) {
+    await RecipeVersion.deleteMany({ _id: { $in: excess.map((v) => v._id) } });
+  }
 }
 
 /** Best display name for a new recipe's author, denormalised at write time. */
@@ -75,18 +132,55 @@ function buildFilter(query: ListRecipesQuery, viewerUid?: string): FilterQuery<u
       // Indexed, stemmed, weighted — but whole-word only.
       filter.$text = { $search: query.search };
     } else {
-      // Substring matching, which is what people expect while typing.
-      const pattern = new RegExp(escapeRegex(query.search), 'i');
-      filter.$or = [
-        { title: pattern },
-        { overview: pattern },
-        { tags: pattern },
-        { 'ingredients.name': pattern },
-      ];
+      Object.assign(filter, searchFilter(query.search));
     }
   }
 
   return filter;
+}
+
+/**
+ * Substring matching across the fields people actually search by.
+ *
+ * The term is regex-escaped before it reaches the driver — interpolating it raw
+ * let an anonymous caller pin a CPU core with `(a+)+$`.
+ */
+function searchFilter(search: string): FilterQuery<unknown> {
+  const pattern = new RegExp(escapeRegex(search), 'i');
+  return {
+    $or: [
+      { title: pattern },
+      { overview: pattern },
+      { tags: pattern },
+      { 'ingredients.name': pattern },
+    ],
+  };
+}
+
+/**
+ * A forgiving second pass for a search that found nothing.
+ *
+ * The exact-substring match above fails completely on a typo — "chiken" returns
+ * an empty page even though the answer is obviously "Chicken Karahi". This
+ * builds a pattern that tolerates one wrong, missing or extra character by
+ * allowing any single character between each pair of letters, which catches the
+ * overwhelming majority of real typos without needing a fuzzy-search engine.
+ *
+ * Only ever runs when the strict search returned nothing, so it costs nothing
+ * on the normal path — and the results are flagged so the UI can say it guessed.
+ */
+function fuzzyFilter(search: string): FilterQuery<unknown> | null {
+  const term = search.trim();
+  // Too short to be worth guessing at: "ri" would match almost everything.
+  if (term.length < 4) return null;
+
+  const relaxed = term
+    .split('')
+    .map((character) => escapeRegex(character))
+    .join('.?');
+
+  const pattern = new RegExp(relaxed, 'i');
+  return { $or: [{ title: pattern }, { tags: pattern }, { 'ingredients.name': pattern }] };
 }
 
 type SortSpec = Record<string, 1 | -1 | { $meta: 'textScore' }>;
@@ -151,6 +245,40 @@ router.get(
         .limit(query.limit)
         .lean(),
     ]);
+
+    /**
+     * Nothing matched, but the reader clearly meant *something*. Retry with a
+     * typo-tolerant pattern rather than showing an empty page, and tell the UI
+     * so it can say the results are a guess.
+     */
+    if (total === 0 && query.search && query.sort !== 'relevance') {
+      const fuzzy = fuzzyFilter(query.search);
+
+      if (fuzzy) {
+        const relaxed = { ...buildFilter({ ...query, search: undefined }, req.user?.uid), ...fuzzy };
+        const [fuzzyTotal, fuzzyRecipes] = await Promise.all([
+          Recipe.countDocuments(relaxed),
+          Recipe.find(relaxed)
+            .select(RECIPE_LIST_PROJECTION)
+            .sort(buildSort(query))
+            .skip(skip)
+            .limit(query.limit)
+            .lean(),
+        ]);
+
+        if (fuzzyTotal > 0) {
+          res.json({
+            ...paginate(
+              publicRecipes(fuzzyRecipes as unknown as Record<string, unknown>[]),
+              fuzzyTotal,
+              query,
+            ),
+            approximate: true,
+          });
+          return;
+        }
+      }
+    }
 
     res.json(paginate(publicRecipes(recipes as unknown as Record<string, unknown>[]), total, query));
   }),
@@ -303,43 +431,32 @@ router.get(
       isSaved = Boolean(saved);
     }
 
-    // Newest comments first, capped — the full array is never sent.
-    const comments = [...recipe.comments]
-      .sort((a, b) => Number(b.createdAt) - Number(a.createdAt))
-      .slice(0, LIMITS.tags * 2);
+    // The first page of the thread, from the comments collection. Older
+    // recipes may still carry an embedded array; it is ignored, and the
+    // migration copies it across.
+    const [comments, commentCount] = await Promise.all([
+      Comment.find({ recipe: recipe._id, parent: null }).sort({ createdAt: -1 }).limit(10).lean(),
+      Comment.countDocuments({ recipe: recipe._id }),
+    ]);
 
-    const { ratings: _ratings, comments: _comments, ...rest } = recipe;
+    const replies = await Comment.find({ parent: { $in: comments.map((c) => c._id) } })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const byParent = new Map<string, unknown[]>();
+    for (const reply of replies) {
+      const key = String(reply.parent);
+      byParent.set(key, [...(byParent.get(key) ?? []), reply]);
+    }
+
+    const { ratings: _ratings, comments: _embedded, ...rest } = recipe;
 
     res.json({
       ...publicRecipe(rest as Record<string, unknown>),
-      comments: comments.map((comment) => publicComment(comment as unknown as Record<string, unknown>)),
-      commentCount: recipe.comments.length,
+      comments: comments.map((c) => ({ ...c, replies: byParent.get(String(c._id)) ?? [] })),
+      commentCount,
       viewer: { userScore, isSaved, isAuthor: uid === recipe.author },
     });
-  }),
-);
-
-/** GET /api/recipes/:id/comments — paginated, so a busy recipe stays cheap. */
-router.get(
-  '/:id/comments',
-  readLimiter,
-  validate({ params: recipeIdParams, query: paginationQuery }),
-  asyncHandler(async (req, res) => {
-    const { id } = req.params as { id: string };
-    const query = req.query as unknown as { page: number; limit: number };
-
-    const recipe = await Recipe.findById(id).select('comments').lean();
-    if (!recipe) throw notFound('Recipe not found');
-
-    const sorted = [...recipe.comments].sort(
-      (a, b) => Number(b.createdAt) - Number(a.createdAt),
-    );
-    const start = (query.page - 1) * query.limit;
-    const page = sorted
-      .slice(start, start + query.limit)
-      .map((comment) => publicComment(comment as unknown as Record<string, unknown>));
-
-    res.json(paginate(page, sorted.length, query));
   }),
 );
 
@@ -380,6 +497,10 @@ router.put(
 
     // `req.body` is the parsed output of a strict schema covering only writable
     // fields, so `author`, `ratings` and `averageRating` cannot be reached here.
+    // Snapshot what the recipe looked like *before* this edit, so the history
+    // shows the state you can go back to.
+    await saveVersion(recipe, user.uid);
+
     recipe.set(req.body);
     await recipe.save();
 
@@ -403,8 +524,15 @@ router.delete(
     await recipe.deleteOne();
 
     // Without this, the id lingers in every saver's list forever, inflating
-    // their saved-recipe page count with entries that render nothing.
-    await Profile.updateMany({ savedRecipes: id }, { $pull: { savedRecipes: id } });
+    // their saved-recipe page count with entries that render nothing. The same
+    // applies to collections, and to the comments that now live in their own
+    // collection rather than inside the recipe.
+    await Promise.all([
+      Profile.updateMany({ savedRecipes: id }, { $pull: { savedRecipes: id } }),
+      Collection.updateMany({ recipes: id }, { $pull: { recipes: id } }),
+      Comment.deleteMany({ recipe: id }),
+      RecipeVersion.deleteMany({ recipe: id }),
+    ]);
 
     res.json({ success: true });
   }),
@@ -413,19 +541,65 @@ router.delete(
 // === COMMENTS ================================================================
 
 /**
- * Every write below uses a single atomic update rather than
- * `findById` → mutate → `save()`.
+ * Comments live in their own collection.
  *
- * That read-modify-write cycle was actively corrupting data: Mongoose emits a
- * `$push` for the array but a plain `$set` for the counter computed from the
- * writer's stale copy, so two people commenting at once left `comments.length`
- * and `commentCount` permanently disagreeing. It also raised `VersionError` —
- * surfacing as a 500 — whenever anyone edited a comment while someone else
- * commented on the same recipe.
- *
- * Deriving the counter with `$size` inside the same update makes the two
- * impossible to diverge.
+ * They used to be embedded, which meant every recipe write rewrote the whole
+ * array, every detail read loaded all of them, and the 16 MB document ceiling
+ * forced a 500-comment cap. `Recipe.commentCount` stays as a denormalised
+ * counter because it is what a card renders, and counting per card would be one
+ * query per card.
  */
+
+/** Recomputes the counter from the collection, in one round trip. */
+async function syncCommentCount(recipeId: string): Promise<number> {
+  const total = await Comment.countDocuments({ recipe: recipeId });
+  await Recipe.updateOne({ _id: recipeId }, { $set: { commentCount: total } });
+  return total;
+}
+
+/** GET /api/recipes/:id/comments — top-level comments, newest first, with replies. */
+router.get(
+  '/:id/comments',
+  readLimiter,
+  validate({ params: recipeIdParams, query: paginationQuery }),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params as { id: string };
+    const query = req.query as unknown as { page: number; limit: number };
+
+    const exists = await Recipe.exists({ _id: id });
+    if (!exists) throw notFound('Recipe not found');
+
+    const filter = { recipe: id, parent: null };
+
+    const [total, roots] = await Promise.all([
+      Comment.countDocuments(filter),
+      Comment.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((query.page - 1) * query.limit)
+        .limit(query.limit)
+        .lean(),
+    ]);
+
+    // One query for every reply on the page rather than one per comment.
+    const replies = await Comment.find({ parent: { $in: roots.map((r) => r._id) } })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const byParent = new Map<string, unknown[]>();
+    for (const reply of replies) {
+      const key = String(reply.parent);
+      byParent.set(key, [...(byParent.get(key) ?? []), reply]);
+    }
+
+    const items = roots.map((root) => ({
+      ...root,
+      replies: byParent.get(String(root._id)) ?? [],
+    }));
+
+    res.json(paginate(items, total, query));
+  }),
+);
+
 router.post(
   '/:id/comments',
   interactionLimiter,
@@ -434,49 +608,40 @@ router.post(
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
     const { id } = req.params as { id: string };
+    const { text, parent } = req.body as { text: string; parent?: string };
+
+    const recipe = await Recipe.exists({ _id: id });
+    if (!recipe) throw notFound('Recipe not found');
+
+    if (parent) {
+      const parentComment = await Comment.findById(parent).select('recipe parent').lean();
+      if (!parentComment || String(parentComment.recipe) !== id) {
+        throw notFound('The comment you are replying to no longer exists');
+      }
+      // One level only. Replying to a reply attaches to its parent instead of
+      // nesting further — arbitrarily deep threads are a moderation and layout
+      // problem long before they are a feature.
+      if (parentComment.parent) {
+        throw badRequest('Replies cannot be nested more than one level deep');
+      }
+    }
 
     const profile = await Profile.findOne({ user: user.uid })
       .select('displayName profilePictureUrl')
       .lean();
 
-    const comment = {
-      _id: new mongoose.Types.ObjectId(),
-      text: (req.body as { text: string }).text,
+    const comment = await Comment.create({
+      recipe: id,
       authorId: user.uid,
-      authorEmail: user.email ?? '',
-      // Never the raw email: falling back to it published the full address of
-      // any commenter without a saved profile, which is every new account.
-      authorDisplayName: profile?.displayName ?? displayNameFrom(user.name ?? user.email),
-      authorProfilePictureUrl: profile?.profilePictureUrl ?? '',
-      createdAt: new Date(),
-      editedAt: null,
-    };
+      authorName: profile?.displayName ?? displayNameFrom(user.name ?? user.email),
+      authorPictureUrl: profile?.profilePictureUrl ?? '',
+      text,
+      parent: parent ?? null,
+    });
 
-    const updated = await Recipe.findOneAndUpdate(
-      {
-        _id: id,
-        // Bounds the document. Without a cap one account could push a recipe
-        // past MongoDB's 16 MB ceiling, after which *no* write to it succeeds —
-        // its owner could no longer edit it and no comment could be deleted.
-        $expr: { $lt: [{ $size: { $ifNull: ['$comments', []] } }, LIMITS.commentsPerRecipe] },
-      },
-      [
-        { $set: { comments: { $concatArrays: [{ $ifNull: ['$comments', []] }, [comment]] } } },
-        { $set: { commentCount: { $size: '$comments' } } },
-      ],
-      { new: true, projection: { _id: 1 } },
-    ).lean();
+    await syncCommentCount(id);
 
-    if (!updated) {
-      // Either the recipe is gone or it is full; say which.
-      const exists = await Recipe.exists({ _id: id });
-      if (!exists) throw notFound('Recipe not found');
-      throw conflict(
-        `This recipe has reached its limit of ${LIMITS.commentsPerRecipe} comments.`,
-      );
-    }
-
-    res.status(201).json(publicComment(comment));
+    res.status(201).json({ ...comment.toJSON(), replies: [] });
   }),
 );
 
@@ -488,30 +653,22 @@ router.patch(
   asyncHandler(async (req, res) => {
     const user = requireUser(req);
     const { id, commentId } = req.params as { id: string; commentId: string };
-    const text = (req.body as { text: string }).text;
-    const editedAt = new Date();
 
-    // Ownership is part of the filter, so the permission check and the write
-    // are one operation and cannot be raced apart.
-    const updated = await Recipe.findOneAndUpdate(
-      { _id: id, comments: { $elemMatch: { _id: commentId, authorId: user.uid } } },
-      { $set: { 'comments.$.text': text, 'comments.$.editedAt': editedAt } },
-      { new: true, projection: { comments: { $elemMatch: { _id: commentId } } } },
+    // Ownership in the filter, so the check and the write cannot be raced apart.
+    const updated = await Comment.findOneAndUpdate(
+      { _id: commentId, recipe: id, authorId: user.uid },
+      { $set: { text: (req.body as { text: string }).text, editedAt: new Date() } },
+      { new: true },
     ).lean();
 
     if (!updated) {
-      const recipe = await Recipe.findOne({ _id: id }, { 'comments.$': 1 })
-        .where('comments._id')
-        .equals(commentId)
-        .lean();
-      if (!recipe) throw notFound('Comment not found');
-      // The comment exists but is not this caller's. Only its author may
-      // rewrite the text — a recipe owner can remove a comment but must not be
-      // able to put words in someone's mouth.
-      throw forbidden('You can only edit your own comments');
+      const exists = await Comment.exists({ _id: commentId, recipe: id });
+      // Only the author may rewrite the text. A recipe owner can remove a
+      // comment but must not be able to put words in someone's mouth.
+      throw exists ? forbidden('You can only edit your own comments') : notFound('Comment not found');
     }
 
-    res.json(publicComment(updated.comments[0] as unknown as Record<string, unknown>));
+    res.json(updated);
   }),
 );
 
@@ -524,34 +681,98 @@ router.delete(
     const user = requireUser(req);
     const { id, commentId } = req.params as { id: string; commentId: string };
 
-    const recipe = await Recipe.findOne(
-      { _id: id, 'comments._id': commentId },
-      { author: 1, 'comments.$': 1 },
-    ).lean();
+    const comment = await Comment.findOne({ _id: commentId, recipe: id }).select('authorId').lean();
+    if (!comment) throw notFound('Comment not found');
 
-    if (!recipe) throw notFound('Comment not found');
-
-    const comment = recipe.comments[0];
-    // The comment's author, or the owner of the recipe moderating their page.
-    const canDelete = comment?.authorId === user.uid || recipe.author === user.uid;
+    const recipe = await Recipe.findById(id).select('author').lean();
+    const canDelete = comment.authorId === user.uid || recipe?.author === user.uid;
     if (!canDelete) throw forbidden('You cannot delete this comment');
 
-    await Recipe.updateOne({ _id: id }, [
-      {
-        $set: {
-          comments: {
-            $filter: {
-              input: { $ifNull: ['$comments', []] },
-              as: 'comment',
-              cond: { $ne: ['$$comment._id', new mongoose.Types.ObjectId(commentId)] },
-            },
-          },
-        },
-      },
-      { $set: { commentCount: { $size: '$comments' } } },
-    ]);
+    // Deleting a parent takes its replies with it; leaving them orphaned would
+    // strand answers to a question nobody can see.
+    await Comment.deleteMany({ $or: [{ _id: commentId }, { parent: commentId }] });
 
-    res.json({ success: true });
+    const commentCount = await syncCommentCount(id);
+
+    res.json({ success: true, commentCount });
+  }),
+);
+
+// === VERSION HISTORY =========================================================
+
+/** GET /api/recipes/:id/versions — the edit history, newest first. */
+router.get(
+  '/:id/versions',
+  readLimiter,
+  requireAuth,
+  validate({ params: recipeIdParams }),
+  asyncHandler(async (req, res) => {
+    const user = requireUser(req);
+    const { id } = req.params as { id: string };
+
+    const recipe = await Recipe.findById(id).select('author').lean();
+    if (!recipe) throw notFound('Recipe not found');
+    // History is the author's working record, not public reading.
+    if (recipe.author !== user.uid) throw forbidden('Only the author can see a recipe\'s history');
+
+    const versions = await RecipeVersion.find({ recipe: id })
+      .sort({ version: -1 })
+      .select('version editedBy restoredFrom createdAt snapshot.title')
+      .lean();
+
+    res.json(versions);
+  }),
+);
+
+/** GET /api/recipes/:id/versions/:version — one full snapshot. */
+router.get(
+  '/:id/versions/:version',
+  readLimiter,
+  requireAuth,
+  validate({ params: versionParams }),
+  asyncHandler(async (req, res) => {
+    const user = requireUser(req);
+    const { id, version } = req.params as unknown as { id: string; version: number };
+
+    const recipe = await Recipe.findById(id).select('author').lean();
+    if (!recipe) throw notFound('Recipe not found');
+    if (recipe.author !== user.uid) throw forbidden('Only the author can see a recipe\'s history');
+
+    const snapshot = await RecipeVersion.findOne({ recipe: id, version }).lean();
+    if (!snapshot) throw notFound('That version no longer exists');
+
+    res.json(snapshot);
+  }),
+);
+
+/**
+ * POST /api/recipes/:id/versions/:version/restore
+ *
+ * Applies an old snapshot as a new edit. The current state is snapshotted
+ * first, so restoring is itself undoable — which is what makes it safe to press.
+ */
+router.post(
+  '/:id/versions/:version/restore',
+  writeLimiter,
+  requireAuth,
+  validate({ params: versionParams }),
+  asyncHandler(async (req, res) => {
+    const user = requireUser(req);
+    const { id, version } = req.params as unknown as { id: string; version: number };
+
+    const recipe = await Recipe.findById(id);
+    if (!recipe) throw notFound('Recipe not found');
+    if (recipe.author !== user.uid) throw forbidden('You can only restore your own recipes');
+
+    const target = await RecipeVersion.findOne({ recipe: id, version }).lean();
+    if (!target?.snapshot) throw notFound('That version no longer exists');
+
+    await saveVersion(recipe, user.uid, version);
+
+    recipe.set(target.snapshot as Record<string, unknown>);
+    await recipe.save();
+
+    res.json(publicRecipe(recipe.toJSON()));
   }),
 );
 

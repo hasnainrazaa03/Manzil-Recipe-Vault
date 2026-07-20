@@ -11,6 +11,9 @@ import { AppError } from './lib/errors.js';
 import recipeRoutes from './routes/recipes.js';
 import userRoutes from './routes/users.js';
 import uploadRoutes from './routes/upload.js';
+import collectionRoutes from './routes/collections.js';
+import socialRoutes from './routes/social.js';
+import shoppingListRoutes from './routes/shopping-list.js';
 
 /**
  * Builds the Express app without starting it or touching the database, so
@@ -72,6 +75,9 @@ export function createApp(): Express {
   app.use('/api/recipes', recipeRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api/upload', uploadRoutes);
+  app.use('/api/collections', collectionRoutes);
+  app.use('/api/social', socialRoutes);
+  app.use('/api/shopping-list', shoppingListRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

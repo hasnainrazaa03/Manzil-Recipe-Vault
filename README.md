@@ -130,7 +130,8 @@ Recipe cards used to display the author's email address. They now show a display
 - Email addresses are never included in any public response.
 - Reads, writes, interactions, and upload-signature minting are rate limited separately, and limiting runs *before* authentication so failed sign-ins are metered too.
 - Counters that accompany an array (`ratingCount`, `commentCount`) are derived inside the same atomic update that changes the array, so they cannot drift apart under concurrent writes.
-- Comments are capped at 500 per recipe, which bounds the document well below MongoDB's 16 MB ceiling.
+- Comments live in their own collection, so a busy recipe no longer grows the recipe document and there is no cap to hit.
+- Follow counters only move when the write that would justify them actually took effect, so parallel toggles cannot drift.
 - Responses are normalised through one serialiser, so a document written before a field existed still honours the published contract.
 
 Full endpoint list: see [`server/src/routes/`](server/src/routes).
@@ -147,6 +148,10 @@ See [`DESIGN.md`](DESIGN.md) for the product plan and the reasoning behind each 
 - **Command palette** — `⌘K` to search recipes or jump anywhere. `?` lists every shortcut.
 - **Discovery** — search across titles, ingredients and tags; filter by tag, cuisine, difficulty and total time; sort by rating, popularity or speed.
 - **Dark mode**, WCAG AA in both themes, full keyboard operation, and a print stylesheet that turns any recipe into a clean card.
+- **Collections** — group recipes into "Weeknight dinners" or "Eid", kept private or shared by link.
+- **Follow cooks** and see their new recipes in a feed, with suggestions when you follow nobody yet.
+- **Edit history** — every change to a recipe is snapshotted, and restoring an old version is itself undoable.
+- **Comments with replies**, one level deep, in their own collection rather than embedded in the recipe.
 
 ---
 

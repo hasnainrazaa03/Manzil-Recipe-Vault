@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { imageProps } from '../lib/images';
 import { Icon } from './Icon';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 
@@ -29,7 +30,7 @@ export function RecentlyViewed() {
           <li key={entry.id}>
             <Link to={`/recipe/${entry.id}`} className="recent-item">
               <img
-                src={entry.image || FALLBACK_IMAGE}
+                {...imageProps(entry.image || FALLBACK_IMAGE, 'thumb')}
                 referrerPolicy="no-referrer"
                 alt=""
                 loading="lazy"

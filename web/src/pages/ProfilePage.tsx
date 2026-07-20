@@ -6,9 +6,17 @@ import { Pagination } from '../components/Pagination';
 import { RecipeGridSkeleton } from '../components/Skeleton';
 import { EmptyState, ErrorState } from '../components/EmptyState';
 import { Icon } from '../components/Icon';
+import { FollowButton } from '../components/FollowButton';
 import { useAuth } from '../context/AuthContext';
 import { useRecipeEditor } from '../context/RecipeEditorContext';
-import { useFetchRecipeDetail, useProfile, useSavedIds, useToggleSave } from '../lib/queries';
+import {
+  useFetchRecipeDetail,
+  useFollowers,
+  useFollowing,
+  useProfile,
+  useSavedIds,
+  useToggleSave,
+} from '../lib/queries';
 import { ApiError } from '../lib/api';
 import type { RecipeSummary } from '../types';
 
@@ -22,6 +30,14 @@ export default function ProfilePage() {
   const savedIds = useSavedIds();
   const toggleSave = useToggleSave();
   const fetchRecipeDetail = useFetchRecipeDetail();
+
+  /**
+   * The profile response carries no follower counts, so they come from the
+   * first page of each list — which is the query the count links navigate to,
+   * and is therefore already warm when the reader gets there.
+   */
+  const followers = useFollowers(userId, 1);
+  const following = useFollowing(userId, 1);
 
   const isOwner = Boolean(user && user.uid === userId);
 
@@ -74,17 +90,33 @@ export default function ProfilePage() {
             <h1>{profile.displayName}</h1>
             {profile.bio && <p className="profile-bio">{profile.bio}</p>}
             <p className="profile-stats">
-              {profile.recipeCount} {profile.recipeCount === 1 ? 'recipe' : 'recipes'}
+              <span>
+                {profile.recipeCount} {profile.recipeCount === 1 ? 'recipe' : 'recipes'}
+              </span>
+
+              <Link to={`/profile/${profile.uid}/followers`} className="profile-stat-link">
+                {followers.data
+                  ? `${followers.data.total} ${followers.data.total === 1 ? 'follower' : 'followers'}`
+                  : 'Followers'}
+              </Link>
+
+              <Link to={`/profile/${profile.uid}/following`} className="profile-stat-link">
+                {following.data ? `${following.data.total} following` : 'Following'}
+              </Link>
             </p>
           </div>
         </div>
 
-        {isOwner && (
-          <Link to="/profile/edit" className="edit-profile-btn">
-            <Icon name="edit" size={16} />
-            <span>Edit profile</span>
-          </Link>
-        )}
+        <div className="profile-header-actions">
+          {!isOwner && <FollowButton userId={profile.uid} displayName={profile.displayName} />}
+
+          {isOwner && (
+            <Link to="/profile/edit" className="edit-profile-btn">
+              <Icon name="edit" size={16} />
+              <span>Edit profile</span>
+            </Link>
+          )}
+        </div>
       </header>
 
       {recipes.items.length === 0 ? (

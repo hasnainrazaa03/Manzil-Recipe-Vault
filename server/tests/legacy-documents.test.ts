@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import mongoose from 'mongoose';
 import { Recipe } from '../src/models/Recipe.js';
 import { Profile } from '../src/models/Profile.js';
+import { Comment } from '../src/models/Comment.js';
 import { api, authHeader } from './helpers.js';
 
 /**
@@ -104,14 +105,56 @@ describe('legacy documents', () => {
     }
   });
 
-  it('the detail endpoint counts the comments it actually has', async () => {
-    // The detail endpoint does load the comments, so unlike the list it can
-    // derive the real count without the migration having run.
+  it('the detail endpoint ignores an un-migrated embedded comment array', async () => {
+    // Comments are read from the `comments` collection now. A recipe whose
+    // comments have not been copied across yet reads as an empty thread rather
+    // than as its stale embedded copy — the migration is what fills it in, and
+    // until it runs the count must not claim comments the read path cannot serve.
+    const res = await api().get(`/api/recipes/${legacyId}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.comments).toEqual([]);
+    expect(res.body.commentCount).toBe(0);
+
+    // The embedded array is still on disk, untouched — reading does not destroy it.
+    const raw = await mongoose.connection
+      .collection('recipes')
+      .findOne({ _id: new mongoose.Types.ObjectId(legacyId) });
+    expect(raw!.comments).toHaveLength(2);
+  });
+
+  it('the detail endpoint serves the migrated documents once they exist', async () => {
+    // What `npm run migrate:comments` produces: one document per embedded
+    // comment, with the embedded array left in place.
+    const raw = await mongoose.connection
+      .collection('recipes')
+      .findOne({ _id: new mongoose.Types.ObjectId(legacyId) });
+    const embedded = raw!.comments as { _id: mongoose.Types.ObjectId; text: string; authorId: string }[];
+
+    await Comment.create(
+      embedded.map((comment) => ({
+        _id: comment._id,
+        recipe: legacyId,
+        authorId: comment.authorId,
+        authorName: 'Anonymous cook',
+        text: comment.text,
+        parent: null,
+      })),
+    );
+
     const res = await api().get(`/api/recipes/${legacyId}`);
 
     expect(res.status).toBe(200);
     expect(res.body.commentCount).toBe(2);
     expect(res.body.comments).toHaveLength(2);
+    expect(res.body.comments.map((c: { text: string }) => c.text).sort()).toEqual([
+      'first comment',
+      'second comment',
+    ]);
+    // Reusing the original `_id` is what keeps a link to a specific comment working.
+    expect(res.body.comments.map((c: { _id: string }) => c._id).sort()).toEqual(
+      embedded.map((c) => c._id.toString()).sort(),
+    );
   });
 
   it('leaks no email address from a legacy document', async () => {

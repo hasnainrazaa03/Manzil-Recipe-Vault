@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import mongoose from 'mongoose';
 import { Recipe } from '../src/models/Recipe.js';
 import { Profile } from '../src/models/Profile.js';
+import { Comment } from '../src/models/Comment.js';
 import { api, authHeader, createRecipe, recipePayload } from './helpers.js';
 
 const USER_A = 'user-a';
@@ -680,13 +681,13 @@ describe('GET /api/recipes/:id — detail', () => {
   });
 
   it('returns comments and hides the raw ratings array', async () => {
-    const recipe = await createRecipe({
-      ratings: [{ userId: USER_B, score: 5 }],
-      comments: [
-        { text: 'first', authorId: USER_B, authorEmail: 'user-b@example.com' },
-        { text: 'second', authorId: USER_B, authorEmail: 'user-b@example.com' },
-      ],
-    });
+    const recipe = await createRecipe({ ratings: [{ userId: USER_B, score: 5 }] });
+    // Comments live in their own collection, so they are arranged there rather
+    // than inside the recipe document.
+    await Comment.create([
+      { recipe: recipe._id, authorId: USER_B, authorName: 'User B', text: 'first' },
+      { recipe: recipe._id, authorId: USER_B, authorName: 'User B', text: 'second' },
+    ]);
 
     const res = await api().get(`/api/recipes/${recipe.id}`);
 
@@ -695,6 +696,29 @@ describe('GET /api/recipes/:id — detail', () => {
     expect(res.body.commentCount).toBe(2);
     expect(res.body.comments.map((c: { text: string }) => c.text).sort()).toEqual(['first', 'second']);
     expect(res.body.ratings).toBeUndefined();
+  });
+
+  it('returns at most the first ten top-level comments, newest first', async () => {
+    const recipe = await createRecipe();
+    // Distinct timestamps so "newest first" is well defined.
+    const base = Date.now();
+    await Comment.create(
+      Array.from({ length: 12 }, (_, index) => ({
+        recipe: recipe._id,
+        authorId: USER_B,
+        authorName: 'User B',
+        text: `comment ${index}`,
+        createdAt: new Date(base + index * 1000),
+      })),
+    );
+
+    const res = await api().get(`/api/recipes/${recipe.id}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.comments).toHaveLength(10);
+    expect(res.body.comments[0].text).toBe('comment 11');
+    // The counter is the whole thread, not the page.
+    expect(res.body.commentCount).toBe(12);
   });
 });
 

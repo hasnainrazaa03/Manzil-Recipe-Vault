@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import mongoose from 'mongoose';
 import { Profile } from '../src/models/Profile.js';
 import { Recipe } from '../src/models/Recipe.js';
+import { Comment } from '../src/models/Comment.js';
 import { EMAIL_PATTERN, api, authHeader, createProfile, createRecipe, expectNoEmailLeak } from './helpers.js';
 
 const ME = 'me-uid';
@@ -397,7 +398,7 @@ describe('renaming fans out to the denormalised author names', () => {
     expect(list.body.items[0].authorName).toBe('Renamed Cook');
   });
 
-  it('PUT /api/users/me updates authorDisplayName on the user’s existing comments', async () => {
+  it('PUT /api/users/me updates authorName on the user’s existing comments', async () => {
     const recipe = await createRecipe({ author: 'someone-else' });
     await createProfile(ME, { displayName: 'Old Name' });
 
@@ -405,12 +406,147 @@ describe('renaming fans out to the denormalised author names', () => {
       .post(`/api/recipes/${recipe.id}/comments`)
       .set(authHeader(ME))
       .send({ text: 'hello' });
-    expect(comment.body.authorDisplayName).toBe('Old Name');
+    expect(comment.body.authorName).toBe('Old Name');
 
     await api().put('/api/users/me').set(authHeader(ME)).send({ displayName: 'New Name' });
 
+    const stored = await Comment.findById(comment.body._id).lean();
+    expect(stored!.authorName).toBe('New Name');
+
     const detail = await api().get(`/api/recipes/${recipe.id}`);
-    expect(detail.body.comments[0].authorDisplayName).toBe('New Name');
+    expect(detail.body.comments[0].authorName).toBe('New Name');
+  });
+
+  it('a rename does not disturb the comment documents’ other fields', async () => {
+    const recipe = await createRecipe({ author: 'someone-else' });
+    await createProfile(ME, { displayName: 'Old Name' });
+
+    const comment = await api()
+      .post(`/api/recipes/${recipe.id}/comments`)
+      .set(authHeader(ME))
+      .send({ text: 'hello' });
+
+    await api().put('/api/users/me').set(authHeader(ME)).send({ displayName: 'New Name' });
+
+    const stored = await Comment.findById(comment.body._id).lean();
+    expect(stored).not.toBeNull();
+    expect(stored!.text).toBe('hello');
+    expect(stored!.authorId).toBe(ME);
+  });
+
+  it('the rename reaches replies as well as top-level comments', async () => {
+    // Replies are comments in the same collection, but they are found by
+    // `parent` rather than by walking a recipe, so a fan-out that scoped itself
+    // to top-level entries would leave them stale and nothing else would notice.
+    const recipe = await createRecipe({ author: 'someone-else' });
+    await createProfile(ME, { displayName: 'Old Name' });
+
+    const root = await api()
+      .post(`/api/recipes/${recipe.id}/comments`)
+      .set(authHeader(ME))
+      .send({ text: 'my root' });
+    const reply = await api()
+      .post(`/api/recipes/${recipe.id}/comments`)
+      .set(authHeader(ME))
+      .send({ text: 'my reply', parent: root.body._id });
+    expect(reply.status).toBe(201);
+    expect(reply.body.authorName).toBe('Old Name');
+
+    await api().put('/api/users/me').set(authHeader(ME)).send({ displayName: 'New Name' });
+
+    const stored = await Comment.find({ authorId: ME }).lean();
+    expect(stored).toHaveLength(2);
+    expect(stored.every((comment) => comment.authorName === 'New Name')).toBe(true);
+
+    // And the thread renders the new name at both levels.
+    const detail = await api().get(`/api/recipes/${recipe.id}`);
+    expect(detail.body.comments[0].authorName).toBe('New Name');
+    expect(detail.body.comments[0].replies[0].authorName).toBe('New Name');
+  });
+
+  it('the rename touches nobody else’s comments', async () => {
+    const recipe = await createRecipe({ author: 'someone-else' });
+    await createProfile(ME, { displayName: 'Old Name' });
+    await createProfile('bystander-uid', { displayName: 'Bystander' });
+
+    const mine = await api()
+      .post(`/api/recipes/${recipe.id}/comments`)
+      .set(authHeader(ME))
+      .send({ text: 'mine' });
+    // A reply from someone else, hanging off my comment — the case an
+    // over-broad `{ recipe }` or `{ parent }` filter would sweep up.
+    const theirReply = await api()
+      .post(`/api/recipes/${recipe.id}/comments`)
+      .set(authHeader('bystander-uid'))
+      .send({ text: 'theirs', parent: mine.body._id });
+    const theirRoot = await api()
+      .post(`/api/recipes/${recipe.id}/comments`)
+      .set(authHeader('bystander-uid'))
+      .send({ text: 'theirs too' });
+
+    await api().put('/api/users/me').set(authHeader(ME)).send({ displayName: 'New Name' });
+
+    expect(await Comment.findById(mine.body._id).lean().then((c) => c!.authorName)).toBe('New Name');
+    for (const id of [theirReply.body._id, theirRoot.body._id]) {
+      const stored = await Comment.findById(id).lean();
+      expect(stored!.authorName).toBe('Bystander');
+    }
+  });
+
+  it('a body without profilePictureUrl leaves the avatar on the user’s comments alone', async () => {
+    // `PUT /api/users/me` merges rather than replaces, so an omitted key means
+    // "unchanged" — not "blank it". The avatar is denormalised onto every
+    // comment, so getting this wrong wipes it from a whole thread on any rename.
+    const recipe = await createRecipe({ author: 'someone-else' });
+    await createProfile(ME, {
+      displayName: 'Old Name',
+      profilePictureUrl: 'https://res.cloudinary.com/demo/image/upload/me.jpg',
+    });
+
+    const comment = await api()
+      .post(`/api/recipes/${recipe.id}/comments`)
+      .set(authHeader(ME))
+      .send({ text: 'hello' });
+    expect(comment.body.authorPictureUrl).toBe(
+      'https://res.cloudinary.com/demo/image/upload/me.jpg',
+    );
+
+    // Rename only — the picture is never mentioned.
+    const res = await api()
+      .put('/api/users/me')
+      .set(authHeader(ME))
+      .send({ displayName: 'New Name' });
+    expect(res.status).toBe(200);
+
+    const stored = await Comment.findById(comment.body._id).lean();
+    expect(stored!.authorName).toBe('New Name');
+    expect(stored!.authorPictureUrl).toBe('https://res.cloudinary.com/demo/image/upload/me.jpg');
+    // The profile itself kept it too, so the two still agree.
+    expect(res.body.profilePictureUrl).toBe('https://res.cloudinary.com/demo/image/upload/me.jpg');
+  });
+
+  it('but a body that does supply profilePictureUrl fans it out', async () => {
+    const recipe = await createRecipe({ author: 'someone-else' });
+    await createProfile(ME, {
+      displayName: 'Old Name',
+      profilePictureUrl: 'https://res.cloudinary.com/demo/image/upload/old.jpg',
+    });
+
+    const comment = await api()
+      .post(`/api/recipes/${recipe.id}/comments`)
+      .set(authHeader(ME))
+      .send({ text: 'hello' });
+
+    await api()
+      .put('/api/users/me')
+      .set(authHeader(ME))
+      .send({
+        displayName: 'New Name',
+        profilePictureUrl: 'https://res.cloudinary.com/demo/image/upload/new.jpg',
+      });
+
+    const stored = await Comment.findById(comment.body._id).lean();
+    expect(stored!.authorPictureUrl).toBe('https://res.cloudinary.com/demo/image/upload/new.jpg');
   });
 
   it('leaves other users’ recipes and comments alone', async () => {

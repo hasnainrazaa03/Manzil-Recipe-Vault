@@ -159,6 +159,11 @@ export const recipeIdParams = z.object({ id: objectId });
 
 export const commentIdParams = z.object({ id: objectId, commentId: objectId });
 
+export const versionParams = z.object({
+  id: objectId,
+  version: z.coerce.number().int().min(1),
+});
+
 export const commentBody = z
   .object({
     text: z
@@ -168,6 +173,8 @@ export const commentBody = z
       .max(LIMITS.commentText)
       .transform(sanitizeText)
       .refine((text) => text.length > 0, { message: 'Comment cannot be empty' }),
+    /** Present when this is a reply. One level only; enforced in the handler. */
+    parent: objectId.optional(),
   })
   .strict();
 

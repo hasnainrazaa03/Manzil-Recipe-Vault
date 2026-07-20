@@ -105,6 +105,37 @@
   --tag-bg: #edf2f7;
   --tag-text: #2d3748;
 
+  /* --- Collection visibility ------------------------------------------ */
+  /* Public and private are never told apart by colour: each badge carries its
+     own icon (globe / person) and its own word. The tint is reinforcement, so
+     what matters here is that the *label* clears 4.5:1 on its own fill and the
+     badge outline clears 3:1 on the card it sits on.
+       public  text  #9a3412 on #fdece2 = 6.4:1 · border #c2410c on card 5.2:1
+       private text  #2d3748 on #edf2f7 = 10.6:1 · border #7b899e on card 3.6:1 */
+  --visibility-public-bg: #fdece2;
+  --visibility-public-text: #9a3412;
+  --visibility-public-border: #c2410c;
+  --visibility-private-bg: #edf2f7;
+  --visibility-private-text: #2d3748;
+  --visibility-private-border: #7b899e;
+
+  /* --- Version history timeline ---------------------------------------- */
+  /* The rule is a decorative connector and owes no ratio. The marker is the
+     only thing saying "this row is an entry", so it is held to the 3:1 a UI
+     boundary needs: #7b899e on the card is 3.6:1. */
+  --timeline-line: #e2e8f0;
+  --timeline-marker: #7b899e;
+
+  /* --- Custom checkbox tick -------------------------------------------- */
+  /* `.ingredient-check-box` gets its tick from an <Icon> painted with
+     `currentColor`. The collection checkboxes have no such stand-in element in
+     their markup — the native input is styled directly — so the tick has to
+     arrive as a background image, and a data URI cannot read a custom
+     property. Tokenising the whole image is what keeps it theme-aware: the
+     stroke is `--accent-contrast` in each theme (5.2:1 light, 8.6:1 dark on
+     the accent fill behind it). */
+  --checkmark-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='20 6 9 17 4 11'%3e%3c/polyline%3e%3c/svg%3e");
+
   /* --- Ratings ------------------------------------------------------- */
   /* Gold is decorative: filled versus empty is carried by the icon shape and
      by the adjacent text ("4.2 (17)" / the radio group's accessible value),
@@ -237,6 +268,22 @@
   --tag-bg: #3b303a;
   --tag-text: #e6dfe2;
 
+  /* Same contract as in light, re-checked against the dark card:
+       public  text  #ffc196 on #46332a = 7.5:1 · border #ffa766 on card 7.5:1
+       private text  #e6dfe2 on #3b303a = 9.6:1 · border #8a7680 on card 3.4:1 */
+  --visibility-public-bg: #46332a;
+  --visibility-public-text: #ffc196;
+  --visibility-public-border: #ffa766;
+  --visibility-private-bg: #3b303a;
+  --visibility-private-text: #e6dfe2;
+  --visibility-private-border: #8a7680;
+
+  --timeline-line: #443840;
+  --timeline-marker: #8a7680; /* 3.4:1 on the dark card */
+
+  /* Same tick, stroked in the dark theme's `--accent-contrast`. */
+  --checkmark-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23241d21' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='20 6 9 17 4 11'%3e%3c/polyline%3e%3c/svg%3e");
+
   --star-color: #ffc107;
   --star-empty: #7d7078;
 
@@ -306,6 +353,18 @@
 
     --tag-bg: #3b303a;
     --tag-text: #e6dfe2;
+
+    --visibility-public-bg: #46332a;
+    --visibility-public-text: #ffc196;
+    --visibility-public-border: #ffa766;
+    --visibility-private-bg: #3b303a;
+    --visibility-private-text: #e6dfe2;
+    --visibility-private-border: #8a7680;
+
+    --timeline-line: #443840;
+    --timeline-marker: #8a7680;
+
+    --checkmark-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23241d21' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='20 6 9 17 4 11'%3e%3c/polyline%3e%3c/svg%3e");
 
     --star-color: #ffc107;
     --star-empty: #7d7078;

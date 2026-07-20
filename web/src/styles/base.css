@@ -70,7 +70,9 @@ textarea {
    horizontal scrollbar. */
 #recipe-grid > *,
 .card-content > *,
-.recipe-detail > * {
+.recipe-detail > *,
+.collection-grid > *,
+.follow-suggestion-list > * {
   min-width: 0;
 }
 

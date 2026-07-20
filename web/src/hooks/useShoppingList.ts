@@ -96,6 +96,9 @@ export function useShoppingList() {
 
   const clearAll = useCallback(() => setItems([]), [setItems]);
 
+  /** Adopts a list wholesale — used by the sync hook after a server merge. */
+  const replaceAll = useCallback((next: ShoppingItem[]) => setItems(next), [setItems]);
+
   /** Grouped by recipe, because that is how the list is built and reviewed. */
   const grouped = useMemo(() => {
     const groups = new Map<string, { recipeId: string; recipeTitle: string; items: ShoppingItem[] }>();
@@ -128,6 +131,7 @@ export function useShoppingList() {
     removeRecipe,
     clearChecked,
     clearAll,
+    replaceAll,
     hasRecipe,
   };
 }

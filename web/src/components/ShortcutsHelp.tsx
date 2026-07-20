@@ -6,6 +6,8 @@ const SHORTCUTS: { keys: string[]; description: string }[] = [
   { keys: ['G', 'H'], description: 'Go to all recipes' },
   { keys: ['G', 'S'], description: 'Go to saved recipes' },
   { keys: ['G', 'L'], description: 'Go to the shopping list' },
+  { keys: ['G', 'F'], description: 'Go to your feed' },
+  { keys: ['G', 'C'], description: 'Go to your collections' },
   { keys: ['N'], description: 'Add a new recipe' },
   { keys: ['?'], description: 'Show this list' },
   { keys: ['Esc'], description: 'Close whatever is open' },

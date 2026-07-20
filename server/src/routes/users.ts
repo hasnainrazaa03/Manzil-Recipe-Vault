@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { admin } from '../config/firebase.js';
 import { Profile } from '../models/Profile.js';
 import { Recipe, RECIPE_LIST_PROJECTION } from '../models/Recipe.js';
+import { Comment } from '../models/Comment.js';
 import { optionalAuth, requireAuth, requireUser } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { readLimiter, writeLimiter } from '../middleware/rateLimit.js';
@@ -69,15 +70,28 @@ router.put(
       { new: true, upsert: true, runValidators: true },
     ).lean();
 
-    // `authorName` is denormalised onto every recipe and comment so that
-    // rendering a card needs no join; renaming has to fan out to keep them true.
+    /**
+     * The display name is denormalised onto every recipe and comment so that
+     * rendering a card or a thread needs no join. Renaming therefore has to fan
+     * out, or the two disagree permanently and silently.
+     *
+     * Comments moved to their own collection; this fan-out kept updating the
+     * old embedded array, which nothing writes any more — so a renamed user's
+     * recipes showed the new name while every comment they had ever written
+     * kept the old one, for good.
+     */
     await Promise.all([
       Recipe.updateMany({ author: user.uid }, { $set: { authorName: body.displayName } }),
-      Recipe.updateMany(
-        { 'comments.authorId': user.uid },
-        { $set: { 'comments.$[entry].authorDisplayName': body.displayName } },
-        { arrayFilters: [{ 'entry.authorId': user.uid }] },
-      ),
+      Comment.updateMany({ authorId: user.uid }, { $set: { authorName: body.displayName } }),
+      ...(body.profilePictureUrl !== undefined
+        ? [
+            // Same reasoning for the avatar beside each comment.
+            Comment.updateMany(
+              { authorId: user.uid },
+              { $set: { authorPictureUrl: body.profilePictureUrl } },
+            ),
+          ]
+        : []),
     ]);
 
     // Keep the Firebase record in step, but never fail the request over it —
@@ -219,6 +233,10 @@ router.get(
         uid: userId,
         displayName: displayName ?? 'Anonymous cook',
         bio: profile?.bio ?? '',
+        // Denormalised on the profile already, so serving them here costs
+        // nothing and saves the client two requests per profile view.
+        followerCount: profile?.followerCount ?? 0,
+        followingCount: profile?.followingCount ?? 0,
         profilePictureUrl: profile?.profilePictureUrl ?? '',
         recipeCount: total,
         isOwner,

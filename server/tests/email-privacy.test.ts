@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { displayNameFrom } from '../src/routes/recipes.js';
 import { Recipe } from '../src/models/Recipe.js';
+import { Comment } from '../src/models/Comment.js';
 import { EMAIL_PATTERN, api, authHeader, createProfile, expectNoEmailLeak, findEmailLeaks, recipePayload } from './helpers.js';
 
 /**
@@ -102,7 +103,7 @@ describe('SECURITY: no response carrying a recipe or comment leaks an email', ()
     expectNoEmailLeak(res.body);
   });
 
-  it('GET /api/recipes/:id (detail, including embedded comments)', async () => {
+  it('GET /api/recipes/:id (detail, including the first page of the thread)', async () => {
     const anon = await api().get(`/api/recipes/${recipeId}`);
     expect(anon.status).toBe(200);
     expect(anon.body.comments).toHaveLength(1);
@@ -122,7 +123,16 @@ describe('SECURITY: no response carrying a recipe or comment leaks an email', ()
     expect(res.body.items).toHaveLength(1);
     expectNoEmailLeak(res.body);
     expect(res.body.items[0]).not.toHaveProperty('authorEmail');
-    expect(res.body.items[0].authorDisplayName).toBe('The Commenter');
+    expect(res.body.items[0].authorName).toBe('The Commenter');
+  });
+
+  it('GET /api/recipes/:id/comments leaks nothing whatever it returns', async () => {
+    // Independent of what the page happens to contain — an empty page is also
+    // email-free, so this holds even if the thread query changes shape again.
+    const res = await api().get(`/api/recipes/${recipeId}/comments`);
+
+    expect(res.status).toBe(200);
+    expectNoEmailLeak(res.body);
   });
 
   it('POST /api/recipes/:id/comments (create response)', async () => {
@@ -167,15 +177,16 @@ describe('SECURITY: no response carrying a recipe or comment leaks an email', ()
     expectNoEmailLeak(owner.body);
   });
 
-  it('the comment subdocument keeps its own copy of the email in storage only', async () => {
-    const stored = await Recipe.findById(recipeId).lean();
-    // Comment `authorEmail` is not `select: false`, so it is read back from the
-    // database — which is exactly why every response path has to serialise
-    // through `publicComment()`.
-    expect(stored!.comments[0]!.authorEmail).toBe(`${COMMENTER}@example.com`);
+  it('a comment document stores no email address at all', async () => {
+    // The embedded subdocument used to keep its own copy of the address, which
+    // is why every comment response had to be serialised through
+    // `publicComment()`. The collection simply has no such field, so the leak
+    // is closed at the schema rather than at each response path.
+    const stored = await Comment.find({ recipe: recipeId }).lean();
 
-    const res = await api().get(`/api/recipes/${recipeId}/comments`);
-    expectNoEmailLeak(res.body);
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).not.toHaveProperty('authorEmail');
+    expect(JSON.stringify(stored)).not.toMatch(EMAIL_PATTERN);
   });
 });
 
@@ -220,8 +231,8 @@ describe('email-derived display names', () => {
 
     expect(res.status).toBe(201);
     expectNoEmailLeak(res.body);
-    expect(res.body.authorDisplayName).not.toMatch(EMAIL_PATTERN);
-    expect(res.body.authorDisplayName).toBe('someone');
+    expect(res.body.authorName).not.toMatch(EMAIL_PATTERN);
+    expect(res.body.authorName).toBe('someone');
   });
 
   it('a commenter WITH a profile still gets their profile display name', async () => {
@@ -239,7 +250,7 @@ describe('email-derived display names', () => {
 
     expect(res.status).toBe(201);
     // The profile wins over the email-derived fallback.
-    expect(res.body.authorDisplayName).toBe('Properly Named');
+    expect(res.body.authorName).toBe('Properly Named');
     expectNoEmailLeak(res.body);
   });
 
@@ -257,16 +268,16 @@ describe('email-derived display names', () => {
     expect(posted.status).toBe(201);
 
     // The exact case that slipped through when only `authorEmail` was stripped:
-    // the address arrived in `authorDisplayName` instead. Sweep every path that
-    // can serve this comment, anonymously.
+    // the address arrived in the display name instead. Sweep every path that can
+    // serve this comment, anonymously.
     const list = await api().get(`/api/recipes/${recipeId}/comments`);
     expect(list.status).toBe(200);
-    expect(list.body.items[0].authorDisplayName).toBe('someone');
+    expect(list.body.items[0].authorName).toBe('someone');
     expectNoEmailLeak(list.body);
 
     const detail = await api().get(`/api/recipes/${recipeId}`);
     expect(detail.status).toBe(200);
-    expect(detail.body.comments[0].authorDisplayName).toBe('someone');
+    expect(detail.body.comments[0].authorName).toBe('someone');
     expectNoEmailLeak(detail.body);
 
     const edited = await api()
@@ -276,11 +287,10 @@ describe('email-derived display names', () => {
     expect(edited.status).toBe(200);
     expectNoEmailLeak(edited.body);
 
-    // And the stored subdocument keeps only the address it needs, in the field
-    // that is never serialised.
-    const stored = await Recipe.findById(recipeId).lean();
-    expect(stored!.comments[0]!.authorEmail).toBe('someone@example.com');
-    expect(stored!.comments[0]!.authorDisplayName).toBe('someone');
+    // And the stored document holds no address to leak in the first place.
+    const stored = await Comment.find({ recipe: recipeId }).lean();
+    expect(stored[0]!.authorName).toBe('someone');
+    expect(JSON.stringify(stored)).not.toMatch(EMAIL_PATTERN);
   });
 
   it('the recipe list and public profile stay email-free for a profile-less author', async () => {
@@ -342,7 +352,7 @@ describe('a token carrying no email claim', () => {
       .send({ text: 'hi' });
 
     expect(res.status).toBe(201);
-    expect(res.body.authorDisplayName).toBe('Anonymous cook');
+    expect(res.body.authorName).toBe('Anonymous cook');
     expectNoEmailLeak(res.body);
   });
 
@@ -369,7 +379,7 @@ describe('a token carrying no email claim', () => {
       .send({ text: 'hi' });
 
     expect(comment.status).toBe(201);
-    expect(comment.body.authorDisplayName).toBe('Anonymous cook');
+    expect(comment.body.authorName).toBe('Anonymous cook');
     expectNoEmailLeak(comment.body);
   });
 

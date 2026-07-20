@@ -9,6 +9,11 @@
    that cannot be pressed on paper, then flatten the remaining ink to black on
    white. Nothing below relies on a token, because tokens carry the *screen*
    theme: a reader on dark mode who prints must still get black on white.
+
+   A third document joined them: a collection. `/collections/:id` prints as the
+   list it is — name, description, count, then one line per recipe. The card
+   grid, the photos and the save stars are all screen affordances; what someone
+   wants on paper is the list to shop or cook from.
    ========================================================================== */
 
 @media print {
@@ -77,6 +82,20 @@
   .ingredient-section > button,
   .servings-adjusted button,
   .results-summary,
+  /* Wave 5. Following someone is not an action available on paper, so every
+     surface built around it goes: the buttons themselves, the suggestion
+     panels wherever they appear, and the two empty states of the feed, which
+     say nothing except "come back to the screen". Version history lives in a
+     dialog and is hidden with `.modal-overlay` above, but it is listed
+     explicitly so it stays hidden if it is ever surfaced inline. */
+  .follow-button,
+  .follow-suggestions,
+  .feed-empty,
+  .profile-header-actions,
+  .version-list,
+  .add-to-collection,
+  .add-to-collection-trigger,
+  .collection-detail-actions,
   .Toastify,
   .Toastify__toast-container {
     display: none !important;
@@ -112,6 +131,7 @@
   }
 
   .recipe-detail,
+  .collection-detail-page,
   .shopping-list-page {
     max-width: none !important;
     margin: 0 !important;
@@ -279,6 +299,83 @@
 
   .shopping-items > li {
     border-top: 0 !important;
+  }
+
+  /* --- A collection ------------------------------------------------------ */
+
+  .collection-detail-header {
+    display: block !important;
+    margin-bottom: 8pt;
+    padding: 0 !important;
+    background: none !important;
+    border: 0 !important;
+    border-bottom: 1pt solid #000000 !important;
+  }
+
+  .collection-detail-header h1 {
+    font-size: 20pt !important;
+    margin-bottom: 4pt;
+  }
+
+  .collection-detail-description {
+    margin-bottom: 4pt;
+  }
+
+  .collection-detail-meta {
+    font-size: 9pt;
+    margin-bottom: 6pt;
+  }
+
+  /* The badge keeps its word and its icon; only the tint goes. */
+  .collection-visibility {
+    color: #000000 !important;
+    background: none !important;
+    border: 1px solid #000000 !important;
+    padding: 1pt 4pt !important;
+  }
+
+  /* The grid becomes a list. `!important` beats the `display: grid` the id
+     selector sets, which no class selector could. */
+  .collection-detail-page #recipe-grid {
+    display: block !important;
+    max-width: none !important;
+  }
+
+  .collection-detail-page .recipe-card {
+    display: block !important;
+    margin: 0 !important;
+    padding: 4pt 0 !important;
+    background: none !important;
+    border: 0 !important;
+    border-bottom: 0.5pt solid #999999 !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* One line per recipe: the title, and who wrote it. A photo per entry is the
+     whole point of the screen layout and exactly the wrong thing on paper. */
+  .collection-detail-page .card-image-container,
+  .collection-detail-page .card-overview,
+  .collection-detail-page .card-rating,
+  .collection-detail-page .tags-container,
+  .collection-detail-page .card-comment-count {
+    display: none !important;
+  }
+
+  .collection-detail-page .card-content {
+    padding: 0 !important;
+  }
+
+  .collection-detail-page .card-title {
+    font-size: 12pt !important;
+    margin: 0 !important;
+  }
+
+  .collection-detail-page .card-footer {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    font-size: 9pt;
   }
 
   /* --- Things that are only there to be interacted with ---------------- */

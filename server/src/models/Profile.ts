@@ -9,6 +9,14 @@ const profileSchema = new Schema(
     bio: { type: String, default: '', maxlength: LIMITS.bio, trim: true },
     profilePictureUrl: { type: String, default: '', maxlength: LIMITS.imageUrl },
     savedRecipes: [{ type: Schema.Types.ObjectId, ref: 'Recipe' }],
+
+    /**
+     * Denormalised follow counts. A profile header shows both, and counting
+     * rows on every render is a query per visit for a number that changes
+     * rarely. Kept in step by the follow toggle.
+     */
+    followerCount: { type: Number, default: 0, min: 0 },
+    followingCount: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true },
 );

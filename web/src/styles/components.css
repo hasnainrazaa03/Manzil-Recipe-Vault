@@ -244,7 +244,11 @@ header {
 
 .home-page,
 .saved-recipes-page,
-.profile-page {
+.profile-page,
+.collections-page,
+.collection-detail-page,
+.feed-page,
+.follow-list-page {
   width: 100%;
   max-width: var(--content-max);
   margin: 0 auto;
@@ -1971,6 +1975,10 @@ fieldset.field > legend {
   .home-page,
   .saved-recipes-page,
   .profile-page,
+  .collections-page,
+  .collection-detail-page,
+  .feed-page,
+  .follow-list-page,
   .recipe-detail {
     padding-inline: var(--spacing-8);
   }
@@ -3663,5 +3671,1059 @@ mark {
 @media (prefers-reduced-motion: reduce) {
   .reading-progress {
     transition: none;
+  }
+}
+
+/* ==========================================================================
+   FOLLOW BUTTON
+   --------------------------------------------------------------------------
+   Three readings, not two: not following, following, and hovering over
+   following — which the component relabels "Unfollow" before the click that
+   would do it. The icon changes with the state too (plus / check), so nothing
+   here is carried by colour alone.
+
+   Every state rule is written against `[aria-pressed]` as well as the modifier
+   class. The component sets both; keying only on the class would let the
+   visual state and the announced state drift apart the first time one of them
+   is edited without the other.
+   ========================================================================== */
+
+.follow-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  /* Not `flex-wrap: wrap`: the hint's separator is an inline-start rule, which
+     would read as a stray line if it ever wrapped. The button stays on one
+     line and it is the *row* that wraps it below the name — see
+     `.follow-list-link` and `.follow-suggestion-link`. */
+  max-width: 100%;
+  min-height: 44px;
+  padding: var(--spacing-2) var(--spacing-5);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+  /* Following is the primary invitation on a profile, so it takes the accent
+     rather than the slate primary — it is the one thing on the header worth
+     pressing. White on terracotta is 5.2:1; near-black on the lifted orange
+     is 8.6:1. */
+  color: var(--accent-contrast);
+  background-color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition), border-color var(--transition),
+    color var(--transition);
+}
+
+.follow-button:hover:not(:disabled) {
+  color: var(--accent-contrast);
+  background-color: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* Following is the *resting* state of a list of people you already follow, so
+   it steps back to the quiet secondary treatment. A page of accent pills would
+   read as a page of things to do. Ink 7.2:1 on the sunken fill in light and
+   7.0:1 in dark; the boundary 3.4:1 and 3.8:1. */
+.follow-button--following,
+.follow-button[aria-pressed='true'] {
+  color: var(--secondary-text);
+  background-color: var(--surface-sunken);
+  border-color: var(--border-strong);
+}
+
+/* Hover is where the label becomes "Unfollow", so the colour follows the word
+   rather than announcing anything on its own. Danger ink on the danger tint is
+   7.0:1 in light and 8.3:1 in dark; the boundary uses `--danger-color`
+   (5.5:1 / 3.2:1 against the card) rather than `--danger-border`, which does
+   not reach 3:1 in either theme. */
+.follow-button--following:hover:not(:disabled),
+.follow-button[aria-pressed='true']:hover:not(:disabled) {
+  color: var(--danger-text);
+  background-color: var(--danger-surface);
+  border-color: var(--danger-color);
+}
+
+/* Deliberately no `:focus-visible` variant of the rule above: the label only
+   flips to "Unfollow" on pointer hover, and a keyboard user seeing danger
+   colours next to the word "Following" would be reading a warning that the
+   text does not make. */
+
+.follow-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* In a row of people the button is an accessory, not the headline. It keeps a
+   pressable height without claiming a 44px block in every row. */
+.follow-button--small {
+  min-height: 36px;
+  padding: var(--spacing-1) var(--spacing-4);
+  font-size: 0.8rem;
+}
+
+.follow-button-label {
+  white-space: nowrap;
+}
+
+/* "Follows you" only ever appears inside the accent (not-following) fill, so
+   it inherits that ink at full strength — 5.2:1 in light, 8.6:1 in dark. The
+   rule, not a colour shift, is what separates it from the label. */
+.follow-button-hint {
+  padding-inline-start: var(--spacing-2);
+  border-inline-start: 1px solid currentColor;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   FOLLOW SUGGESTIONS
+   ========================================================================== */
+
+.follow-suggestions {
+  margin-top: var(--spacing-8);
+  padding: var(--spacing-5) var(--spacing-6);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.follow-suggestions-title {
+  margin: 0 0 var(--spacing-2);
+  font-size: var(--text-h3);
+}
+
+.follow-suggestions-description {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--text-sm);
+  color: var(--secondary-text);
+}
+
+.follow-suggestion-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--spacing-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.follow-suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2) var(--spacing-3);
+  min-width: 0;
+  padding: var(--spacing-3);
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+/* `1 1 10rem` rather than `1 1 auto`: below roughly 10rem of room the person
+   and the action stack instead of squeezing, which is what keeps the row
+   usable at 360px. */
+.follow-suggestion-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex: 1 1 10rem;
+  min-width: 0;
+  color: inherit;
+}
+
+.follow-suggestion-link:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+.follow-suggestion-link:hover .follow-suggestion-name {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.follow-suggestion-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.follow-suggestion-name {
+  font-weight: 600;
+  color: var(--primary-text);
+  /* One line: a long display name must not push the card wider than its grid
+     track. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.follow-suggestion-stats {
+  font-size: var(--text-xs);
+  color: var(--secondary-text); /* 7.2:1 on the sunken fill, 7.0:1 in dark */
+}
+
+.follow-suggestion--skeleton {
+  /* No border: the placeholder should not draw a box the real row does not
+     have a moment later. */
+  border-color: transparent;
+}
+
+/* ==========================================================================
+   AVATAR ROWS — shared between suggestions and the follow lists
+   --------------------------------------------------------------------------
+   36px is the size `.comment-avatar` already established for an avatar inside
+   a text row; `.profile-avatar` owns 96px for the header. There is no third
+   size, so these reuse the first.
+   ========================================================================== */
+
+.follow-suggestion-avatar,
+.follow-list-avatar {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  object-fit: cover;
+  border-radius: var(--radius-full);
+  background-color: var(--surface-hover);
+}
+
+.follow-suggestion-avatar--placeholder,
+.follow-list-avatar--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  border: 1px solid var(--border-color);
+}
+
+/* The circular sibling of `.skeleton-image` / `.skeleton-line`, sized to the
+   avatar it stands in for so nothing shifts when the data lands. */
+.skeleton-avatar {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: var(--radius-full);
+}
+
+/* `.skeleton-line` carries a bottom margin for stacked placeholders; in a row
+   it would push the avatar off centre. */
+.follow-suggestion--skeleton .skeleton-line,
+.follow-list-row--skeleton .skeleton-line {
+  flex: 1 1 45%;
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
+   COLLECTIONS — index
+   --------------------------------------------------------------------------
+   A collection is a stack of recipes, so the card is drawn as one: two paper
+   edges peek out from under it. They are pseudo-elements at `z-index: -1`,
+   which means the card itself must never become a stacking context — that is
+   why the hover response is a shadow and a border rather than the `translateY`
+   lift `.recipe-card` uses. A transform on the card would establish a context
+   and flip both edges in front of the card they sit behind.
+   ========================================================================== */
+
+.collections-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3) var(--spacing-4);
+  margin-bottom: var(--spacing-6);
+}
+
+.collections-header h1 {
+  margin: 0;
+  min-width: 0;
+}
+
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--spacing-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* Keeps the negative-z paper edges inside the grid rather than letting them
+     escape into the root stacking context. */
+  isolation: isolate;
+}
+
+.collection-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  min-width: 0;
+  padding: var(--spacing-5);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+
+.collection-card::before,
+.collection-card::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  bottom: -5px;
+  left: var(--spacing-3);
+  right: var(--spacing-3);
+  height: var(--radius-xl);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  transition: transform var(--transition);
+}
+
+.collection-card::after {
+  bottom: -10px;
+  left: var(--spacing-6);
+  right: var(--spacing-6);
+}
+
+.collection-card:hover,
+.collection-card:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-lg);
+}
+
+/* The stack fans very slightly. Decorative — the border and shadow above are
+   what say "interactive" — so it is dropped under reduced motion. */
+.collection-card:hover::before,
+.collection-card:focus-within::before {
+  transform: translateY(2px);
+}
+
+.collection-card:hover::after,
+.collection-card:focus-within::after {
+  transform: translateY(4px);
+}
+
+.collection-card--skeleton {
+  gap: var(--spacing-2);
+  box-shadow: var(--shadow-md);
+}
+
+.collection-card--skeleton::before,
+.collection-card--skeleton::after {
+  /* A placeholder should not promise a stack it may turn out not to have. */
+  content: none;
+}
+
+.collection-card-link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  min-width: 0;
+  color: inherit;
+}
+
+.collection-card-link:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+.collection-card-link:hover .collection-card-name {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* The whole card is the link. The meta row below it holds no controls, so an
+   overlay costs nothing and buys a target the size of the card. */
+.collection-card-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-xl);
+}
+
+.collection-card-name {
+  margin: 0;
+  font-size: var(--text-h3);
+}
+
+.collection-card-description {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--secondary-text);
+  /* Three lines, then an ellipsis: descriptions run to 300 characters and the
+     cards in a row should stay the same height. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.collection-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2) var(--spacing-3);
+  /* `auto` on the top margin pins the meta row to the bottom, so the count and
+     the visibility badge line up across a row of uneven cards. */
+  margin: auto 0 0;
+}
+
+/* The count is the thing being scanned for, so it gets weight and size rather
+   than sitting in the metadata greys. */
+.collection-card-count {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary-text);
+}
+
+/* Public and private differ by icon (globe / person) and by word before they
+   differ by colour — DESIGN.md §2.4. The tint only reinforces. */
+.collection-visibility {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.collection-visibility--public {
+  color: var(--visibility-public-text);
+  background-color: var(--visibility-public-bg);
+  border-color: var(--visibility-public-border);
+}
+
+.collection-visibility--private {
+  color: var(--visibility-private-text);
+  background-color: var(--visibility-private-bg);
+  border-color: var(--visibility-private-border);
+}
+
+/* ==========================================================================
+   COLLECTIONS — detail
+   ========================================================================== */
+
+.collection-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-8);
+  padding: var(--spacing-6);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.collection-detail-info {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.collection-detail-info h1 {
+  margin-bottom: var(--spacing-2);
+}
+
+.collection-detail-description {
+  margin: 0 0 var(--spacing-3);
+  max-width: var(--reading-max);
+  color: var(--secondary-text);
+}
+
+.collection-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2) var(--spacing-4);
+  margin: 0;
+}
+
+.collection-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+/* The one form behind "New collection" and "Edit collection". Same rhythm as
+   `.recipe-form`, which it sits inside a Modal beside. */
+.collection-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+/* ==========================================================================
+   ADD TO COLLECTION
+   --------------------------------------------------------------------------
+   The checkbox here is the *native input, styled directly*: unlike
+   `.ingredient-check` there is no `.ingredient-check-box` stand-in span in the
+   markup to paint over it. The treatment is otherwise identical — same 22px
+   box, same 2px `--border-strong` boundary, same accent fill on `:checked`,
+   same relocated focus ring — and it is driven off the same two pseudo-classes
+   so keyboard, pointer and screen reader all get one widget. The tick arrives
+   as `--checkmark-image` rather than as an icon element for the same reason.
+   ========================================================================== */
+
+.add-to-collection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+.add-to-collection-status {
+  margin: 0;
+  padding: var(--spacing-4);
+  text-align: center;
+  color: var(--secondary-text);
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-lg);
+}
+
+.add-to-collection-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  color: var(--danger-text);
+  background-color: var(--danger-surface);
+  border: 1px solid var(--danger-border);
+  border-left: 4px solid var(--danger-color);
+  border-radius: var(--radius-md);
+}
+
+.add-to-collection-error p {
+  margin: 0;
+}
+
+.collection-checklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* Fifty collections is the server cap; the dialog scrolls rather than growing
+     past the viewport. */
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.collection-checklist-item + .collection-checklist-item {
+  border-top: 1px solid var(--border-color);
+}
+
+/* A filed collection is marked three ways: the tick, the checkbox's own
+   `checked` state, and this tint. `--accent-soft` is 1.15:1 against the card
+   and is never the only signal — see DESIGN.md §6. */
+.collection-checklist-item:has(input:checked) {
+  background-color: var(--accent-soft);
+}
+
+.collection-checklist-label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--spacing-3);
+  min-height: 44px; /* the whole row is the tap target, not just the box */
+  padding: var(--spacing-2);
+  font-weight: 400;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast);
+}
+
+.collection-checklist-label:hover {
+  background-color: var(--surface-hover);
+}
+
+.collection-checklist-label > input[type='checkbox'],
+.field--checkbox > input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  background-color: var(--card-background);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 15px 15px;
+  /* 3.6:1 against the card in light, 3.4:1 in dark — the control boundary,
+     exactly as `.ingredient-check-box` draws it. */
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.collection-checklist-label > input[type='checkbox'] {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+.collection-checklist-label > input[type='checkbox']:checked,
+.field--checkbox > input[type='checkbox']:checked {
+  background-color: var(--accent);
+  background-image: var(--checkmark-image);
+  border-color: var(--accent);
+}
+
+/* The ring the input draws for itself, restated so the offset survives the
+   `appearance: none` above on engines that drop the default ring with it. */
+.collection-checklist-label > input[type='checkbox']:focus-visible,
+.field--checkbox > input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.collection-checklist-label > input[type='checkbox']:disabled,
+.field--checkbox > input[type='checkbox']:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.collection-checklist-name {
+  grid-column: 2;
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+.collection-checklist-meta {
+  grid-column: 2;
+  font-size: var(--text-xs);
+  color: var(--text-faint); /* 4.8:1 on the card in light, 4.7:1 in dark */
+}
+
+.collection-quick-create {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--border-color);
+}
+
+.collection-quick-create > label {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.collection-quick-create-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--spacing-2);
+}
+
+.collection-quick-create-row input {
+  flex: 1 1 11rem;
+  min-width: 0;
+}
+
+.collection-quick-create-row .btn-primary {
+  flex: none;
+}
+
+/* ==========================================================================
+   FIELD — checkbox variant
+   --------------------------------------------------------------------------
+   `.field` puts the label above its control. A checkbox reads the other way
+   round — box, then the sentence it applies to — with the hint tucked under
+   the label rather than under the box.
+   ========================================================================== */
+
+.field--checkbox {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--spacing-3);
+  row-gap: var(--spacing-1);
+}
+
+.field--checkbox > input[type='checkbox'] {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.field--checkbox > label {
+  grid-column: 2;
+  grid-row: 1;
+  cursor: pointer;
+}
+
+.field--checkbox > .field-hint {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* ==========================================================================
+   FEED
+   ========================================================================== */
+
+.feed-page > h1 {
+  margin-bottom: var(--spacing-6);
+}
+
+/* Two different nothings, and they get two different weights. */
+.feed-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  max-width: 54rem;
+  margin: 0 auto;
+}
+
+.feed-empty .empty-state {
+  margin-block: 0;
+}
+
+.feed-empty .follow-suggestions {
+  margin-top: 0;
+}
+
+/* "You follow nobody" is fixable right here, so the suggestions are the point
+   of the screen and keep their card. */
+.feed-empty--no-follows .follow-suggestions {
+  box-shadow: var(--shadow-lg);
+}
+
+/* "Nobody has posted" is not fixable by following one more person, so the
+   suggestions drop to a footnote: a rule instead of a card. */
+.feed-empty--quiet .follow-suggestions {
+  padding-inline: 0;
+  padding-bottom: 0;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ==========================================================================
+   FOLLOW LISTS
+   ========================================================================== */
+
+.follow-list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2) var(--spacing-4);
+  margin-bottom: var(--spacing-6);
+}
+
+.follow-list-header h1 {
+  margin: 0;
+  min-width: 0;
+}
+
+.follow-list-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-height: 44px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--secondary-text);
+}
+
+.follow-list-back:hover {
+  color: var(--accent);
+}
+
+.follow-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.follow-list-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2) var(--spacing-4);
+  padding: var(--spacing-4) var(--spacing-5);
+}
+
+.follow-list-row + .follow-list-row {
+  border-top: 1px solid var(--border-color);
+}
+
+/* Same `1 1 12rem` reasoning as the suggestion row: the action wraps below the
+   person rather than crushing the name at 360px. */
+.follow-list-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex: 1 1 12rem;
+  min-width: 0;
+  color: inherit;
+}
+
+.follow-list-link:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+.follow-list-link:hover .follow-list-name {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.follow-list-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.follow-list-name {
+  font-weight: 600;
+  color: var(--primary-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.follow-list-bio {
+  font-size: var(--text-sm);
+  color: var(--secondary-text); /* 7.5:1 on the card in light, 6.3:1 in dark */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.follow-list-count {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.follow-list-row--skeleton {
+  gap: var(--spacing-3);
+}
+
+/* ==========================================================================
+   PROFILE — follow additions
+   ========================================================================== */
+
+.profile-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+/* The stats line grew from one span to a span and two links, and inline
+   children with no separator run together. */
+.profile-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1) var(--spacing-4);
+}
+
+/* Underlined at rest, not only on hover: these two sit beside a plain span in
+   the same line and the same size, so the underline is what says one of them
+   is a link and one is not. */
+.profile-stat-link {
+  color: var(--secondary-text); /* 7.5:1 on the card in light, 6.3:1 in dark */
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-stat-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .profile-header-actions,
+  .profile-stats {
+    justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   VERSION HISTORY
+   --------------------------------------------------------------------------
+   A chronological list, so it is drawn as one: a rule down the left with a
+   marker per entry. The rule carries no information the order of the list does
+   not already carry, which is exactly why it stays this quiet — one hairline
+   and a 12px dot, no dates on the axis, no connectors between branches.
+   ========================================================================== */
+
+.version-list {
+  position: relative;
+  margin: 0 0 var(--spacing-4);
+  padding: 0 0 0 var(--spacing-6);
+  list-style: none;
+}
+
+/* Inset top and bottom so the rule starts at the first marker and stops at the
+   last, rather than trailing off past both. */
+.version-list::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: var(--spacing-4);
+  bottom: var(--spacing-4);
+  width: 2px;
+  background-color: var(--timeline-line);
+}
+
+.version-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: var(--spacing-4);
+  row-gap: var(--spacing-1);
+  padding: var(--spacing-3) 0;
+}
+
+.version-row + .version-row {
+  border-top: 1px solid var(--border-color);
+}
+
+/* The marker. `--timeline-marker` is 3.6:1 on the card in light and 3.4:1 in
+   dark — it is the only thing saying "an entry starts here", so it is held to
+   the ratio a UI boundary owes. The card-coloured centre is what punches it
+   out of the rule behind it. */
+.version-row::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--spacing-6) * -1 + 2px);
+  top: 1.15em;
+  width: 12px;
+  height: 12px;
+  background-color: var(--card-background);
+  border: 2px solid var(--timeline-marker);
+  border-radius: var(--radius-full);
+}
+
+.version-meta {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--spacing-1) var(--spacing-2);
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+}
+
+.version-number {
+  font-weight: 600;
+  color: var(--primary-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* An annotation on the entry, not a status: small, inline, and set in the
+   accent tint that already means "noted" elsewhere in the app. Primary ink on
+   `--accent-soft` is 10.4:1 in light and 10.2:1 in dark. */
+.version-restored {
+  padding: 0 var(--spacing-2);
+  font-size: var(--text-xs);
+  font-style: italic;
+  color: var(--primary-text);
+  background-color: var(--accent-soft);
+  border-radius: var(--radius-full);
+}
+
+.version-title {
+  grid-column: 1;
+  margin: 0;
+  color: var(--secondary-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-row > button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+/* ==========================================================================
+   RESPONSIVE — wave 5 surfaces
+   ========================================================================== */
+
+@media (max-width: 600px) {
+  /* Same reasoning as `#recipe-grid`: below 600px a 260px minimum plus the
+     page padding can exceed the viewport, so drop to one column outright
+     rather than trusting auto-fill to work it out. */
+  .collection-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-5);
+  }
+
+  .follow-suggestion-list {
+    grid-template-columns: 1fr;
+  }
+
+  .collection-detail-header {
+    padding: var(--spacing-5) var(--spacing-4);
+  }
+
+  .follow-list-row {
+    padding: var(--spacing-4);
+  }
+
+  .follow-suggestions {
+    padding-inline: var(--spacing-4);
+  }
+}
+
+@media (max-width: 480px) {
+  /* The restore button drops below the entry it belongs to rather than
+     squeezing the title into two characters and an ellipsis. */
+  .version-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .version-row > button {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+    margin-top: var(--spacing-1);
+  }
+
+  .collection-quick-create-row .btn-primary {
+    flex: 1 1 100%;
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION — wave 5 additions
+   --------------------------------------------------------------------------
+   The global block in base.css zeroes durations, which makes a transform
+   instant rather than absent. These two are decoration — the border and shadow
+   change beside them is what says "interactive" — so they are removed.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .collection-card:hover::before,
+  .collection-card:focus-within::before,
+  .collection-card:hover::after,
+  .collection-card:focus-within::after {
+    transform: none;
   }
 }

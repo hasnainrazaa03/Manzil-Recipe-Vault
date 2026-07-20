@@ -10,10 +10,17 @@ import { RecentlyViewed } from '../components/RecentlyViewed';
 import { Pagination } from '../components/Pagination';
 import { RecipeGridSkeleton } from '../components/Skeleton';
 import { EmptyState, ErrorState } from '../components/EmptyState';
+import { FollowSuggestions } from '../components/FollowSuggestions';
 
 import { useAuth } from '../context/AuthContext';
 import { useRecipeEditor } from '../context/RecipeEditorContext';
-import { useFetchRecipeDetail, useRecipes, useSavedIds, useToggleSave } from '../lib/queries';
+import {
+  useFeed,
+  useFetchRecipeDetail,
+  useRecipes,
+  useSavedIds,
+  useToggleSave,
+} from '../lib/queries';
 import { ApiError } from '../lib/api';
 import type { Difficulty, RecipeListParams, RecipeSummary, SortOption } from '../types';
 
@@ -140,6 +147,14 @@ export default function HomePage() {
   const { data, isPending, isError, error, refetch } = useRecipes(params);
   const fetchRecipeDetail = useFetchRecipeDetail();
 
+  /**
+   * `followsAnyone` is the only reliable signal that the feed is empty because
+   * there is nobody in it — the same query the feed page uses, so this costs
+   * one cached request and warms that page.
+   */
+  const { data: feed } = useFeed(1);
+  const followsNobody = feed?.followsAnyone === false;
+
   const handleEdit = async (recipe: RecipeSummary) => {
     const full = await fetchRecipeDetail(recipe._id);
     if (full) openEdit(full);
@@ -169,6 +184,9 @@ export default function HomePage() {
         <>
           <FeaturedRecipe />
           <RecentlyViewed />
+          {followsNobody && (
+            <FollowSuggestions description="Follow a few cooks and their newest recipes land in your feed." />
+          )}
         </>
       )}
 

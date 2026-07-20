@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Recipe } from '../src/models/Recipe.js';
+import { Comment } from '../src/models/Comment.js';
 import { api, authHeader, createRecipe } from './helpers.js';
-import { LIMITS } from '../src/models/constants.js';
 
 /**
  * Concurrent writes to the same recipe.
@@ -13,8 +13,11 @@ import { LIMITS } from '../src/models/constants.js';
  * next write. The same pattern raised `VersionError`, which surfaced as a 500,
  * whenever anyone edited a comment while someone else commented.
  *
- * Every counter is now derived with `$size` inside the same atomic update, so
- * the array and its count cannot diverge.
+ * Ratings are still an array on the recipe, and their counter is derived with
+ * `$size` inside the same atomic update. Comments have moved to their own
+ * collection, so the equivalent guarantee is that `commentCount` is recomputed
+ * from `Comment.countDocuments` after every write and therefore still agrees
+ * with the number of comment documents after any interleaving.
  */
 
 const OWNER = 'owner-uid';
@@ -22,6 +25,16 @@ const OWNER = 'owner-uid';
 /** Fires requests genuinely in parallel rather than merely in a loop. */
 const inParallel = <T>(count: number, make: (index: number) => Promise<T>) =>
   Promise.all(Array.from({ length: count }, (_, index) => make(index)));
+
+/** The invariant every comment test here shares. */
+async function expectCounterMatchesCollection(recipeId: string) {
+  const [stored, actual] = await Promise.all([
+    Recipe.findById(recipeId).lean(),
+    Comment.countDocuments({ recipe: recipeId }),
+  ]);
+  expect(stored!.commentCount).toBe(actual);
+  return actual;
+}
 
 describe('concurrent ratings', () => {
   it('keeps ratingCount and averageRating consistent with the array', async () => {
@@ -110,7 +123,7 @@ describe('concurrent ratings', () => {
 });
 
 describe('concurrent comments', () => {
-  it('keeps commentCount consistent with the array', async () => {
+  it('keeps commentCount consistent with the collection', async () => {
     const recipe = await createRecipe({ author: OWNER });
 
     const responses = await inParallel(6, (index) =>
@@ -122,9 +135,53 @@ describe('concurrent comments', () => {
 
     expect(responses.every((res) => res.status === 201)).toBe(true);
 
-    const stored = await Recipe.findById(recipe.id).lean();
-    expect(stored!.comments).toHaveLength(6);
-    expect(stored!.commentCount).toBe(6);
+    expect(await Comment.countDocuments({ recipe: recipe.id })).toBe(6);
+    expect(await expectCounterMatchesCollection(recipe.id)).toBe(6);
+  });
+
+  it('keeps commentCount consistent when parallel deletes land together', async () => {
+    const recipe = await createRecipe({ author: OWNER });
+
+    const created = await inParallel(6, (index) =>
+      api()
+        .post(`/api/recipes/${recipe.id}/comments`)
+        .set(authHeader(`commenter-${index}`, `c${index}@example.com`))
+        .send({ text: `comment ${index}` }),
+    );
+    expect(await Comment.countDocuments({ recipe: recipe.id })).toBe(6);
+
+    // Four of the six go at once, each deleted by its own author.
+    const doomed = created.slice(0, 4);
+    const responses = await Promise.all(
+      doomed.map((res, index) =>
+        api()
+          .delete(`/api/recipes/${recipe.id}/comments/${res.body._id}`)
+          .set(authHeader(`commenter-${index}`, `c${index}@example.com`)),
+      ),
+    );
+
+    expect(responses.every((res) => res.status === 200)).toBe(true);
+    expect(await Comment.countDocuments({ recipe: recipe.id })).toBe(2);
+    expect(await expectCounterMatchesCollection(recipe.id)).toBe(2);
+  });
+
+  it('keeps commentCount consistent when replies arrive in parallel', async () => {
+    const recipe = await createRecipe({ author: OWNER });
+    const root = await api()
+      .post(`/api/recipes/${recipe.id}/comments`)
+      .set(authHeader('root-author', 'root@example.com'))
+      .send({ text: 'root' });
+
+    const responses = await inParallel(5, (index) =>
+      api()
+        .post(`/api/recipes/${recipe.id}/comments`)
+        .set(authHeader(`replier-${index}`, `r${index}@example.com`))
+        .send({ text: `reply ${index}`, parent: root.body._id }),
+    );
+
+    expect(responses.every((res) => res.status === 201)).toBe(true);
+    // Replies are comments too, so the counter includes them.
+    expect(await expectCounterMatchesCollection(recipe.id)).toBe(6);
   });
 
   it('does not 500 when an edit races a new comment', async () => {
@@ -149,8 +206,7 @@ describe('concurrent comments', () => {
     expect(added.status).toBe(201);
     expect(edited.body.text).toBe('edited');
 
-    const stored = await Recipe.findById(recipe.id).lean();
-    expect(stored!.commentCount).toBe(stored!.comments.length);
+    expect(await expectCounterMatchesCollection(recipe.id)).toBe(2);
   });
 
   it('recounts correctly when a delete races an add', async () => {
@@ -170,14 +226,41 @@ describe('concurrent comments', () => {
         .send({ text: 'arriving' }),
     ]);
 
-    const stored = await Recipe.findById(recipe.id).lean();
-    expect(stored!.commentCount).toBe(stored!.comments.length);
-    expect(stored!.comments.some((c) => c.text === 'going away')).toBe(false);
+    expect(await expectCounterMatchesCollection(recipe.id)).toBe(1);
+    expect(await Comment.exists({ recipe: recipe.id, text: 'going away' })).toBeNull();
+  });
+
+  it('recounts correctly when a thread delete races an add', async () => {
+    const recipe = await createRecipe({ author: OWNER });
+    const root = await api()
+      .post(`/api/recipes/${recipe.id}/comments`)
+      .set(authHeader('deleter', 'deleter@example.com'))
+      .send({ text: 'going away' });
+    await api()
+      .post(`/api/recipes/${recipe.id}/comments`)
+      .set(authHeader('replier', 'replier@example.com'))
+      .send({ text: 'going away too', parent: root.body._id });
+
+    await Promise.all([
+      api()
+        .delete(`/api/recipes/${recipe.id}/comments/${root.body._id}`)
+        .set(authHeader('deleter', 'deleter@example.com')),
+      api()
+        .post(`/api/recipes/${recipe.id}/comments`)
+        .set(authHeader('adder', 'adder@example.com'))
+        .send({ text: 'arriving' }),
+    ]);
+
+    // The parent and its reply both went; the new root stayed.
+    expect(await expectCounterMatchesCollection(recipe.id)).toBe(1);
+    expect(await Comment.countDocuments({ recipe: recipe.id, parent: null })).toBe(1);
   });
 
   it('keeps the counter right on a legacy recipe that has no counter yet', async () => {
     // `$inc` would have been wrong here: it would set the counter to 1 on a
-    // recipe that already had comments but no stored count.
+    // recipe that already had comments but no stored count. The counter is
+    // recomputed from the collection instead — and the embedded array a legacy
+    // recipe still carries is not part of that count.
     const recipe = await createRecipe({ author: OWNER });
     await Recipe.collection.updateOne(
       { _id: recipe._id },
@@ -197,46 +280,15 @@ describe('concurrent comments', () => {
       .set(authHeader('new-commenter', 'n@example.com'))
       .send({ text: 'brand new' });
 
-    const stored = await Recipe.findById(recipe.id).lean();
-    expect(stored!.comments).toHaveLength(3);
-    expect(stored!.commentCount).toBe(3);
+    expect(await expectCounterMatchesCollection(recipe.id)).toBe(1);
+    // The un-migrated array is left exactly where it was — the migration, not a
+    // request path, is what moves it.
+    expect(await Recipe.findById(recipe.id).lean().then((r) => r!.comments)).toHaveLength(2);
   });
 });
 
-describe('comment cap', () => {
-  it('refuses to grow a recipe past the limit', async () => {
-    const recipe = await createRecipe({ author: OWNER });
-
-    // Fill it directly; posting 500 comments over HTTP would be slow and is not
-    // what this test is about.
-    await Recipe.collection.updateOne(
-      { _id: recipe._id },
-      {
-        $set: {
-          comments: Array.from({ length: LIMITS.commentsPerRecipe }, (_, index) => ({
-            text: `filler ${index}`,
-            authorId: 'filler',
-            authorEmail: 'filler@example.com',
-            createdAt: new Date(),
-          })),
-          commentCount: LIMITS.commentsPerRecipe,
-        },
-      },
-    );
-
-    const res = await api()
-      .post(`/api/recipes/${recipe.id}/comments`)
-      .set(authHeader('one-too-many', 'x@example.com'))
-      .send({ text: 'no room' });
-
-    expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('conflict');
-
-    const stored = await Recipe.findById(recipe.id).lean();
-    expect(stored!.comments).toHaveLength(LIMITS.commentsPerRecipe);
-  });
-
-  it('still distinguishes a missing recipe from a full one', async () => {
+describe('commenting on a recipe that is not there', () => {
+  it('404s rather than creating an orphaned comment', async () => {
     const res = await api()
       .post('/api/recipes/507f1f77bcf86cd799439011/comments')
       .set(authHeader('someone', 's@example.com'))

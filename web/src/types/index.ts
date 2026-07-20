@@ -18,6 +18,8 @@ export interface Comment {
   authorProfilePictureUrl: string;
   createdAt: string;
   editedAt: string | null;
+  /** One level only; a reply never has replies of its own. */
+  replies?: Comment[];
 }
 
 /** What list endpoints return — no `comments` or `ratings` arrays. */
@@ -84,6 +86,8 @@ export interface Paginated<T> {
   limit: number;
   total: number;
   totalPages: number;
+  /** Set when an exact search found nothing and these are a best guess. */
+  approximate?: boolean;
 }
 
 export interface TagCount {
@@ -121,6 +125,8 @@ export interface PublicProfile {
   bio: string;
   profilePictureUrl: string;
   recipeCount: number;
+  followerCount: number;
+  followingCount: number;
   isOwner: boolean;
 }
 
@@ -155,4 +161,93 @@ export interface UploadSignature {
   apiKey: string;
   cloudName: string;
   uploadUrl: string;
+}
+
+
+// === Wave 5 ==================================================================
+
+export interface Collection {
+  _id: string;
+  owner: string;
+  name: string;
+  description: string;
+  isPublic: boolean;
+  recipeCount: number;
+  createdAt: string;
+  updatedAt: string;
+  /** Only present on the detail response. */
+  isOwner?: boolean;
+}
+
+export interface CollectionInput {
+  name: string;
+  description: string;
+  isPublic: boolean;
+  recipes?: string[];
+}
+
+export interface CollectionDetail {
+  collection: Collection;
+  recipes: Paginated<RecipeSummary>;
+}
+
+/** One row of the "add to collection" menu. */
+export interface CollectionMembership {
+  _id: string;
+  name: string;
+  recipeCount: number;
+  isPublic: boolean;
+  containsRecipe: boolean;
+}
+
+export interface PublicUser {
+  uid: string;
+  displayName: string;
+  profilePictureUrl: string;
+  bio: string;
+  followerCount: number;
+}
+
+export interface FollowSuggestion extends PublicUser {
+  recipeCount: number;
+  averageRating: number;
+}
+
+export interface Relationship {
+  following: boolean;
+  followsYou: boolean;
+  isSelf: boolean;
+}
+
+export interface Feed extends Paginated<RecipeSummary> {
+  /** Distinguishes "nothing new" from "you follow nobody". */
+  followsAnyone: boolean;
+}
+
+export interface RecipeVersionSummary {
+  _id: string;
+  version: number;
+  editedBy: string;
+  restoredFrom: number | null;
+  createdAt: string;
+  snapshot: { title: string };
+}
+
+export interface RecipeVersionDetail extends Omit<RecipeVersionSummary, 'snapshot'> {
+  snapshot: RecipeInput;
+}
+
+export interface ServerShoppingItem {
+  id: string;
+  amount: string;
+  name: string;
+  recipeId: string;
+  recipeTitle: string;
+  checked: boolean;
+  addedAt: number;
+}
+
+export interface ServerShoppingList {
+  items: ServerShoppingItem[];
+  updatedAt: string | null;
 }

@@ -15,6 +15,8 @@ import { CookMode } from '../components/CookMode';
 import { RelatedRecipes } from '../components/RelatedRecipes';
 import { Lightbox } from '../components/Lightbox';
 import { ReadingProgress } from '../components/ReadingProgress';
+import { VersionHistory } from '../components/VersionHistory';
+import { AddToCollectionButton } from '../components/AddToCollectionButton';
 
 import { useAuth } from '../context/AuthContext';
 import { useRecipeEditor } from '../context/RecipeEditorContext';
@@ -61,6 +63,7 @@ export default function RecipeDetailPage() {
   const [servings, setServings] = useState<number | null>(null);
   const [isCooking, setIsCooking] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   useDocumentMeta(recipe?.title, recipe?.overview);
   useRecordView(recipe);
@@ -257,11 +260,21 @@ export default function RecipeDetailPage() {
             </button>
           )}
 
+          <AddToCollectionButton recipeId={recipe._id} recipeTitle={recipe.title} />
+
           {isAuthor && (
             <>
               <button type="button" onClick={() => openEdit(recipe)} className="btn-secondary btn-sm">
                 <Icon name="edit" size={16} />
                 <span>Edit</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsHistoryOpen(true)}
+                className="btn-secondary btn-sm"
+              >
+                <Icon name="history" size={16} />
+                <span>History</span>
               </button>
               <button
                 type="button"
@@ -371,6 +384,12 @@ export default function RecipeDetailPage() {
         instructions={recipe.instructions}
         ingredients={recipe.ingredients}
         scaleFactor={scaleFactor}
+      />
+
+      <VersionHistory
+        recipeId={recipe._id}
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
       />
 
       <Lightbox

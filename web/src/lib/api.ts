@@ -1,8 +1,20 @@
 import { auth } from '../firebase';
 import type {
+  Collection as CollectionType,
+  CollectionDetail,
+  CollectionInput,
+  CollectionMembership,
   Comment,
   CuisineCount,
   CurrentUser,
+  Feed,
+  FollowSuggestion,
+  PublicUser,
+  RecipeVersionDetail,
+  RecipeVersionSummary,
+  Relationship,
+  ServerShoppingItem,
+  ServerShoppingList,
   Paginated,
   ProfileInput,
   ProfileResponse,
@@ -152,10 +164,21 @@ export const api = {
     comments: (id: string, page = 1, limit = 10) =>
       request<Paginated<Comment>>(`/api/recipes/${id}/comments${toQuery({ page, limit })}`),
 
-    addComment: (id: string, text: string) =>
+    addComment: (id: string, text: string, parent?: string) =>
       request<Comment>(`/api/recipes/${id}/comments`, {
         method: 'POST',
-        body: { text },
+        body: parent ? { text, parent } : { text },
+        auth: 'required',
+      }),
+
+    versions: (id: string) => request<RecipeVersionSummary[]>(`/api/recipes/${id}/versions`, { auth: 'required' }),
+
+    version: (id: string, version: number) =>
+      request<RecipeVersionDetail>(`/api/recipes/${id}/versions/${version}`, { auth: 'required' }),
+
+    restoreVersion: (id: string, version: number) =>
+      request<RecipeDetail>(`/api/recipes/${id}/versions/${version}/restore`, {
+        method: 'POST',
         auth: 'required',
       }),
 
@@ -210,6 +233,86 @@ export const api = {
         method: 'PUT',
         auth: 'required',
       }),
+  },
+
+  collections: {
+    list: (owner = 'me', page = 1, signal?: AbortSignal) =>
+      request<Paginated<CollectionType>>(`/api/collections${toQuery({ owner, page })}`, {
+        auth: 'optional',
+        signal,
+      }),
+
+    get: (id: string, page = 1, signal?: AbortSignal) =>
+      request<CollectionDetail>(`/api/collections/${id}${toQuery({ page })}`, {
+        auth: 'optional',
+        signal,
+      }),
+
+    create: (input: CollectionInput) =>
+      request<CollectionType>('/api/collections', { method: 'POST', body: input, auth: 'required' }),
+
+    update: (id: string, input: Partial<CollectionInput>) =>
+      request<CollectionType>(`/api/collections/${id}`, { method: 'PATCH', body: input, auth: 'required' }),
+
+    remove: (id: string) =>
+      request<{ success: true }>(`/api/collections/${id}`, { method: 'DELETE', auth: 'required' }),
+
+    toggleRecipe: (id: string, recipeId: string) =>
+      request<{ added: boolean; recipeCount: number; recipeIds: string[] }>(
+        `/api/collections/${id}/recipes/${recipeId}`,
+        { method: 'PUT', auth: 'required' },
+      ),
+
+    containing: (recipeId: string, signal?: AbortSignal) =>
+      request<CollectionMembership[]>(`/api/collections/containing/${recipeId}`, {
+        auth: 'required',
+        signal,
+      }),
+  },
+
+  social: {
+    toggleFollow: (userId: string) =>
+      request<{ following: boolean }>(`/api/social/follow/${userId}`, {
+        method: 'PUT',
+        auth: 'required',
+      }),
+
+    followers: (userId: string, page = 1, signal?: AbortSignal) =>
+      request<Paginated<PublicUser>>(`/api/social/${userId}/followers${toQuery({ page })}`, { signal }),
+
+    following: (userId: string, page = 1, signal?: AbortSignal) =>
+      request<Paginated<PublicUser>>(`/api/social/${userId}/following${toQuery({ page })}`, { signal }),
+
+    relationship: (userId: string, signal?: AbortSignal) =>
+      request<Relationship>(`/api/social/relationship/${userId}`, { auth: 'required', signal }),
+
+    feed: (page = 1, signal?: AbortSignal) =>
+      request<Feed>(`/api/social/feed${toQuery({ page })}`, { auth: 'required', signal }),
+
+    suggestions: (signal?: AbortSignal) =>
+      request<FollowSuggestion[]>('/api/social/suggestions', { auth: 'required', signal }),
+  },
+
+  shoppingList: {
+    get: (signal?: AbortSignal) =>
+      request<ServerShoppingList>('/api/shopping-list', { auth: 'required', signal }),
+
+    replace: (items: ServerShoppingItem[]) =>
+      request<ServerShoppingList>('/api/shopping-list', {
+        method: 'PUT',
+        body: { items },
+        auth: 'required',
+      }),
+
+    /** Called on sign-in, so a list built while signed out is never discarded. */
+    merge: (items: ServerShoppingItem[]) =>
+      request<ServerShoppingList>('/api/shopping-list/merge', {
+        method: 'POST',
+        body: { items },
+        auth: 'required',
+      }),
+
+    clear: () => request<{ items: [] }>('/api/shopping-list', { method: 'DELETE', auth: 'required' }),
   },
 
   uploads: {

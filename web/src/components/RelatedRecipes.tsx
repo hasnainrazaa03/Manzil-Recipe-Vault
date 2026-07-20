@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { imageProps } from '../lib/images';
 import { StarRating } from './StarRating';
 import { formatDuration } from '../lib/format';
 import { useRelatedRecipes } from '../lib/queries';
@@ -23,7 +24,7 @@ export function RelatedRecipes({ recipeId }: { recipeId: string }) {
             <li key={recipe._id} className="related-item">
               <Link to={`/recipe/${recipe._id}`} className="related-link">
                 <img
-                  src={recipe.image || FALLBACK_IMAGE}
+                  {...imageProps(recipe.image || FALLBACK_IMAGE, 'thumb')}
                   referrerPolicy="no-referrer"
                   alt=""
                   loading="lazy"

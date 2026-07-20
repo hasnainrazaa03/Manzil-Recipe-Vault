@@ -8,8 +8,10 @@ import {
 import { api } from './api';
 import { useAuth } from '../context/AuthContext';
 import type {
+  CollectionInput,
   Comment,
   CurrentUser,
+  Relationship,
   Paginated,
   ProfileInput,
   RecipeDetail,
@@ -34,6 +36,19 @@ export const keys = {
   me: ['users', 'me'] as const,
   profile: (userId: string, page: number) => ['users', userId, 'profile', page] as const,
   saved: (page: number) => ['users', 'me', 'saved', page] as const,
+
+  collections: (owner: string, page: number) => ['collections', owner, page] as const,
+  collection: (id: string, page: number) => ['collections', 'detail', id, page] as const,
+  collectionsContaining: (recipeId: string) => ['collections', 'containing', recipeId] as const,
+
+  feed: (page: number) => ['social', 'feed', page] as const,
+  relationship: (userId: string) => ['social', 'relationship', userId] as const,
+  followers: (userId: string, page: number) => ['social', userId, 'followers', page] as const,
+  followingList: (userId: string, page: number) => ['social', userId, 'following', page] as const,
+  suggestions: ['social', 'suggestions'] as const,
+
+  versions: (recipeId: string) => ['recipes', recipeId, 'versions'] as const,
+  serverShoppingList: ['shopping-list'] as const,
 };
 
 // === Queries =================================================================
@@ -323,3 +338,167 @@ export function useUpdateProfile() {
 }
 
 export type { Paginated, RecipeSummary };
+
+
+// === Wave 5 ==================================================================
+
+export function useCollections(owner = 'me', page = 1) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: keys.collections(owner, page),
+    queryFn: ({ signal }) => api.collections.list(owner, page, signal),
+    // Your own collections need an identity; someone else's are public.
+    enabled: owner !== 'me' || Boolean(user),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useCollection(id: string | undefined, page = 1) {
+  return useQuery({
+    queryKey: keys.collection(id ?? '', page),
+    queryFn: ({ signal }) => api.collections.get(id!, page, signal),
+    enabled: Boolean(id),
+    placeholderData: (previous) => previous,
+  });
+}
+
+/** Which of the caller's collections already hold this recipe. */
+export function useCollectionsContaining(recipeId: string | undefined) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: keys.collectionsContaining(recipeId ?? ''),
+    queryFn: ({ signal }) => api.collections.containing(recipeId!, signal),
+    enabled: Boolean(recipeId && user),
+  });
+}
+
+export function useCreateCollection() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CollectionInput) => api.collections.create(input),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ['collections'] }),
+  });
+}
+
+export function useUpdateCollection() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: Partial<CollectionInput> }) =>
+      api.collections.update(id, input),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ['collections'] }),
+  });
+}
+
+export function useDeleteCollection() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.collections.remove(id),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ['collections'] }),
+  });
+}
+
+export function useToggleRecipeInCollection() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ collectionId, recipeId }: { collectionId: string; recipeId: string }) =>
+      api.collections.toggleRecipe(collectionId, recipeId),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ['collections'] }),
+  });
+}
+
+export function useFeed(page = 1) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: keys.feed(page),
+    queryFn: ({ signal }) => api.social.feed(page, signal),
+    enabled: Boolean(user),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useRelationship(userId: string | undefined) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: keys.relationship(userId ?? ''),
+    queryFn: ({ signal }) => api.social.relationship(userId!, signal),
+    enabled: Boolean(userId && user),
+  });
+}
+
+export function useFollowers(userId: string | undefined, page = 1) {
+  return useQuery({
+    queryKey: keys.followers(userId ?? '', page),
+    queryFn: ({ signal }) => api.social.followers(userId!, page, signal),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useFollowing(userId: string | undefined, page = 1) {
+  return useQuery({
+    queryKey: keys.followingList(userId ?? '', page),
+    queryFn: ({ signal }) => api.social.following(userId!, page, signal),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useFollowSuggestions() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: keys.suggestions,
+    queryFn: ({ signal }) => api.social.suggestions(signal),
+    enabled: Boolean(user),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Optimistic follow toggle. The button flips immediately and rolls back on
+ * failure — the request is fast, but the button is the only feedback there is.
+ */
+export function useToggleFollow() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => api.social.toggleFollow(userId),
+    onMutate: async (userId) => {
+      await client.cancelQueries({ queryKey: keys.relationship(userId) });
+      const previous = client.getQueryData<Relationship>(keys.relationship(userId));
+
+      if (previous) {
+        client.setQueryData<Relationship>(keys.relationship(userId), {
+          ...previous,
+          following: !previous.following,
+        });
+      }
+      return { previous };
+    },
+    onError: (_error, userId, context) => {
+      if (context?.previous) client.setQueryData(keys.relationship(userId), context.previous);
+    },
+    onSettled: (_data, _error, userId) => {
+      void client.invalidateQueries({ queryKey: keys.relationship(userId) });
+      void client.invalidateQueries({ queryKey: ['social', 'feed'] });
+      void client.invalidateQueries({ queryKey: keys.suggestions });
+      void client.invalidateQueries({ queryKey: ['users', userId] });
+    },
+  });
+}
+
+export function useRecipeVersions(recipeId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: keys.versions(recipeId ?? ''),
+    queryFn: () => api.recipes.versions(recipeId!),
+    enabled: enabled && Boolean(recipeId),
+  });
+}
+
+export function useRestoreVersion(recipeId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (version: number) => api.recipes.restoreVersion(recipeId, version),
+    onSuccess: (restored) => {
+      client.setQueryData(keys.recipe(recipeId), restored);
+      void client.invalidateQueries({ queryKey: keys.versions(recipeId) });
+      void client.invalidateQueries({ queryKey: keys.recipes });
+    },
+  });
+}

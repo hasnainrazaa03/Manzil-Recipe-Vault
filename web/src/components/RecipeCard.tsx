@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { imageProps } from '../lib/images';
 import { Icon } from './Icon';
 import { StarRating } from './StarRating';
 import { MetadataStrip } from './MetadataStrip';
@@ -37,7 +38,7 @@ export function RecipeCard({
             keyboard — previously the only way in was clicking an <img>. */}
         <Link to={`/recipe/${recipe._id}`} className="card-image-link" tabIndex={-1} aria-hidden="true">
           <img
-            src={recipe.image || FALLBACK_IMAGE}
+            {...imageProps(recipe.image || FALLBACK_IMAGE, 'card')}
             referrerPolicy="no-referrer"
             alt=""
             loading="lazy"

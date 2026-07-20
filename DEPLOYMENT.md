@@ -240,6 +240,32 @@ It is idempotent; running it twice is harmless.
 
 If your host has no shell, run it from your machine with the production `MONGO_URI` set in your local `server/.env`.
 
+### 3.2 Comments migration — run this BEFORE deploying, not after
+
+> This is the only step in the whole guide whose *order* matters. Everything else can be done in any sequence.
+
+
+```bash
+cd server && npm run build && npm run migrate:comments
+```
+
+Comments moved out of the recipe document into their own collection. The new code reads only the new collection, so **if you deploy first, every existing comment disappears from the site until the migration finishes.**
+
+Running it first avoids that entirely, because the migration only *copies*: it leaves the embedded array exactly where it is, and the currently-deployed code carries on reading that copy and never looks at the new collection. So the correct order is:
+
+1. Run `npm run migrate:comments` against production, while the old build is still serving.
+2. Deploy the new build. It reads the collection, which is already populated.
+
+There is no window in which comments are missing, and if anything is wrong with the new read path the fix is to redeploy the previous build — with no data to restore, because none was moved.
+
+Once the new build has been serving correctly for a while, the embedded arrays can optionally be removed:
+
+```bash
+npm run migrate:comments -- --drop
+```
+
+That step refuses to run if any recipe has more embedded comments than migrated ones, so the two steps cannot be run out of order.
+
 ---
 
 ## 4. Deploying the web client
