@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ALLOWED_IMAGE_HOSTS, LIMITS } from '../models/constants.js';
+import { ALLOWED_IMAGE_HOSTS, DIFFICULTIES, LIMITS } from '../models/constants.js';
 import { sanitizeHtml, sanitizeText } from '../lib/sanitize.js';
 import { objectId, paginationQuery, searchQuery } from './common.js';
 
@@ -57,6 +57,24 @@ const tags = z
  * are set by the server, and because `validate()` replaces the body with this
  * schema's output, a client cannot smuggle them through.
  */
+/**
+ * An optional number that also accepts `null` and `''` — a cleared form field
+ * arrives as one or the other, and both mean "not stated".
+ */
+const optionalCount = (max: number) =>
+  z
+    // Order matters: Zod takes the first branch that succeeds, and
+    // `z.coerce.number()` succeeds on both `null` and `''` — each coerces to 0.
+    // With the number first, the null branches were unreachable, so clearing a
+    // field stored 0 instead of null and collapsed the "not stated" versus
+    // "zero minutes" distinction the model depends on.
+    .union([z.null(), z.literal(''), z.coerce.number()])
+    .optional()
+    .transform((value) => (value === '' || value === null || value === undefined ? null : value))
+    .refine((value) => value === null || (Number.isInteger(value) && value >= 0 && value <= max), {
+      message: `Must be a whole number between 0 and ${max}`,
+    });
+
 const recipeWritableFields = {
   title: z.string().trim().min(1, 'Title is required').max(LIMITS.title).transform(sanitizeText),
   image: imageUrl.default(''),
@@ -69,6 +87,18 @@ const recipeWritableFields = {
     .transform(sanitizeHtml)
     .refine((html) => sanitizeText(html).length > 0, { message: 'Instructions are required' }),
   tags,
+
+  // Cooking metadata — all optional; `null` means "not stated".
+  servings: optionalCount(LIMITS.servings).refine((v) => v === null || v >= 1, {
+    message: 'Servings must be at least 1',
+  }),
+  prepMinutes: optionalCount(LIMITS.minutes),
+  cookMinutes: optionalCount(LIMITS.minutes),
+  difficulty: z
+    .union([z.null(), z.literal(''), z.enum(DIFFICULTIES)])
+    .optional()
+    .transform((value) => (value === '' || value === undefined ? null : value)),
+  cuisine: z.string().trim().max(LIMITS.cuisine).default('').transform(sanitizeText),
 };
 
 export const createRecipeBody = z.object(recipeWritableFields).strict();
@@ -82,6 +112,11 @@ export const updateRecipeBody = z
     ingredients: z.array(ingredient).max(LIMITS.ingredients).optional(),
     instructions: recipeWritableFields.instructions.optional(),
     tags: tags.optional(),
+    servings: recipeWritableFields.servings.optional(),
+    prepMinutes: recipeWritableFields.prepMinutes.optional(),
+    cookMinutes: recipeWritableFields.cookMinutes.optional(),
+    difficulty: recipeWritableFields.difficulty.optional(),
+    cuisine: recipeWritableFields.cuisine.optional(),
   })
   .strict()
   .refine((body) => Object.keys(body).length > 0, { message: 'No fields to update' });
@@ -102,8 +137,12 @@ export const listRecipesQuery = paginationQuery.extend({
     }),
   /** With multiple tags: match recipes having *all* of them, or *any*. */
   tagMode: z.enum(['any', 'all']).default('any'),
-  sort: z.enum(['newest', 'oldest', 'rating', 'popular', 'relevance']).default('newest'),
+  sort: z.enum(['newest', 'oldest', 'rating', 'popular', 'relevance', 'quickest']).default('newest'),
   author: z.string().trim().max(128).optional(),
+  difficulty: z.enum(DIFFICULTIES).optional(),
+  cuisine: z.string().trim().max(LIMITS.cuisine).optional(),
+  /** "Under N minutes", matched against the derived total. */
+  maxMinutes: z.coerce.number().int().min(1).max(LIMITS.minutes).optional(),
 });
 
 export const recipeIdParams = z.object({ id: objectId });

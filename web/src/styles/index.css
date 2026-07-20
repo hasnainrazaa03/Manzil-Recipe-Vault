@@ -1,0 +1,18 @@
+/* ==========================================================================
+   Manzil Recipe Vault — stylesheet entry point
+   --------------------------------------------------------------------------
+   Plain CSS, no build step beyond Vite's own @import inlining.
+
+   Load order matters: tokens define the custom properties everything else
+   consumes, base resets and styles bare elements, components layers on the
+   class API. All @import rules must stay at the top of the file.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@import './tokens.css';
+@import './base.css';
+@import './components.css';
+/* Last, so its @media print rules win on equal specificity without needing to
+   out-specify anything above. */
+@import './print.css';

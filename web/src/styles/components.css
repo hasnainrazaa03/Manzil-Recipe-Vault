@@ -1,0 +1,3667 @@
+/* ==========================================================================
+   COMPONENTS
+   --------------------------------------------------------------------------
+   Ordered roughly by how a visitor meets them: chrome, then the home page,
+   then a recipe, then the things you can open on top of it.
+   ========================================================================== */
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-3) var(--spacing-6);
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: var(--header-bg);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  border-bottom: 1px solid var(--header-border);
+  box-shadow: 0 1px 3px var(--shadow-color);
+  color: var(--primary-text);
+}
+
+.header-brand {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  border-radius: var(--radius-md);
+}
+
+.header-brand:hover {
+  text-decoration: none;
+}
+
+.header-logo {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-2) var(--spacing-4);
+  /* Lets the nav shrink instead of pushing the header wider than the page. */
+  min-width: 0;
+}
+
+.nav-link {
+  padding: var(--spacing-2) 0;
+  font-weight: 500;
+  color: var(--primary-text);
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-link:hover {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom-color: var(--accent);
+}
+
+/* React Router marks the matching NavLink with `.active`. */
+.nav-link.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.user-greeting {
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  color: var(--secondary-text);
+}
+
+.login-button,
+.logout-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--button-primary-text);
+  background-color: var(--button-primary-bg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--transition);
+}
+
+.login-button:hover,
+.logout-button:hover {
+  background-color: var(--button-primary-hover);
+  color: var(--button-primary-text);
+  text-decoration: none;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 44px minimum touch target for an icon-only control. */
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: var(--primary-text);
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition), border-color var(--transition);
+}
+
+.theme-toggle:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+/* ==========================================================================
+   BUTTONS
+   ========================================================================== */
+
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-5);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background-color var(--transition), border-color var(--transition),
+    color var(--transition);
+}
+
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-danger:hover,
+.btn-link:hover {
+  text-decoration: none;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-danger:disabled,
+.btn-link:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  color: var(--button-primary-text);
+  background-color: var(--button-primary-bg);
+}
+
+.btn-primary:hover:not(:disabled) {
+  color: var(--button-primary-text);
+  background-color: var(--button-primary-hover);
+}
+
+.btn-secondary {
+  color: var(--button-secondary-text);
+  background-color: var(--button-secondary-bg);
+  /* The border, not the fill, is what guarantees 3:1 against the card in dark
+     mode — the secondary fill sits close to the surface behind it. */
+  border-color: var(--border-strong);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  color: var(--button-secondary-text);
+  background-color: var(--button-secondary-hover);
+}
+
+/* A saved recipe's toggle reads as pressed. */
+.btn-secondary.is-saved,
+.btn-secondary[aria-pressed='true'] {
+  color: var(--button-primary-text);
+  background-color: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+}
+
+.btn-danger {
+  color: var(--danger-contrast);
+  background-color: var(--danger-color);
+}
+
+.btn-danger:hover:not(:disabled) {
+  color: var(--danger-contrast);
+  background-color: var(--danger-hover);
+}
+
+.btn-link {
+  padding: var(--spacing-2);
+  font-weight: 500;
+  color: var(--secondary-text);
+  background: none;
+  border-color: transparent;
+}
+
+.btn-link:hover:not(:disabled) {
+  color: var(--accent);
+  background-color: var(--surface-hover);
+}
+
+.btn-link--danger {
+  color: var(--danger-text);
+}
+
+.btn-link--danger:hover:not(:disabled) {
+  color: var(--danger-text);
+  background-color: var(--danger-surface);
+}
+
+.btn-sm {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: 0.85rem;
+}
+
+.btn-link.btn-sm {
+  padding: var(--spacing-2);
+}
+
+/* ==========================================================================
+   HOME PAGE — view toggle, search, filters
+   ========================================================================== */
+
+.home-page,
+.saved-recipes-page,
+.profile-page {
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--spacing-6) var(--spacing-4) 0;
+}
+
+.saved-recipes-page > h1 {
+  text-align: center;
+  margin-bottom: var(--spacing-6);
+}
+
+.view-toggle {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-6);
+}
+
+.view-toggle button {
+  padding: var(--spacing-2) var(--spacing-5);
+  font-weight: 500;
+  color: var(--secondary-text);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+    border-color var(--transition);
+}
+
+.view-toggle button:hover {
+  background-color: var(--surface-hover);
+  color: var(--primary-text);
+}
+
+.view-toggle button.active {
+  font-weight: 600;
+  color: var(--button-primary-text);
+  background-color: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+}
+
+.filters {
+  margin-bottom: var(--spacing-6);
+}
+
+.search-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-4);
+}
+
+.search-input-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 36rem;
+}
+
+.search-icon {
+  position: absolute;
+  left: var(--spacing-4);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+.search-input {
+  padding-left: calc(var(--spacing-4) * 2 + 18px);
+  background-color: var(--card-background);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+}
+
+.filter-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.tag-filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-2);
+  max-width: 100%;
+}
+
+.tag-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--tag-text);
+  background-color: var(--tag-bg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.tag-filter-btn:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.tag-filter-btn.active {
+  color: var(--button-primary-text);
+  background-color: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+}
+
+.tag-count {
+  padding: 0 var(--spacing-2);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  background-color: rgb(0 0 0 / 0.08);
+  border-radius: var(--radius-full);
+}
+
+.tag-filter-btn.active .tag-count {
+  background-color: rgb(255 255 255 / 0.22);
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-3) var(--spacing-4);
+}
+
+.tag-mode,
+.sort-container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.tag-mode label,
+.sort-container label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--primary-text);
+}
+
+.tag-mode select,
+.sort-select {
+  width: auto;
+  padding-block: var(--spacing-2);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.results-summary {
+  margin: var(--spacing-4) 0 0;
+  text-align: center;
+  font-size: 0.9rem;
+  /* On the gradient, not a card — needs the darker of the two muted tokens. */
+  color: var(--secondary-text);
+  min-height: 1.4em; /* reserves the line so filtering does not jog the grid */
+}
+
+/* ==========================================================================
+   RECIPE GRID + CARD
+   ========================================================================== */
+
+#recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-6);
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+@media (max-width: 600px) {
+  #recipe-grid {
+    /* Below 600px a 280px minimum plus padding can exceed the viewport, so
+       drop to one column outright rather than relying on auto-fill. */
+    grid-template-columns: 1fr;
+    gap: var(--spacing-4);
+  }
+}
+
+.recipe-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.recipe-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+.recipe-card:focus-within {
+  box-shadow: var(--shadow-xl);
+}
+
+.card-image-container {
+  position: relative;
+  background-color: var(--surface-sunken);
+}
+
+.card-image-link {
+  display: block;
+}
+
+.card-image-container img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.save-btn {
+  position: absolute;
+  top: var(--spacing-2);
+  right: var(--spacing-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: var(--primary-text);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+    transform var(--transition);
+}
+
+.save-btn:hover {
+  transform: scale(1.06);
+  border-color: var(--border-strong);
+}
+
+.save-btn.saved,
+.save-btn[aria-pressed='true'] {
+  color: #241d21; /* fixed dark ink: the gold fill is the same in both themes */
+  background-color: var(--star-color);
+  border-color: var(--star-color);
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: var(--spacing-2);
+  padding: var(--spacing-5);
+}
+
+.card-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.card-title a {
+  color: var(--primary-text);
+}
+
+.card-title a:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.card-rating {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.rating-count {
+  font-size: 0.8rem;
+  color: var(--text-faint);
+}
+
+.card-overview {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--secondary-text);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag {
+  display: inline-block;
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--tag-text);
+  background-color: var(--tag-bg);
+  border-radius: var(--radius-full);
+}
+
+a.tag:hover {
+  color: var(--accent-contrast);
+  background-color: var(--accent);
+  text-decoration: none;
+}
+
+.card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  /* Pushes the footer to the bottom regardless of overview length, so cards
+     in a row line up. */
+  margin-top: auto;
+  padding-top: var(--spacing-2);
+  font-size: 0.8rem;
+  color: var(--text-faint);
+}
+
+.card-author {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-width: 0;
+  color: var(--secondary-text);
+  font-weight: 500;
+}
+
+.card-author span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-comment-count {
+  white-space: nowrap;
+}
+
+.card-actions {
+  display: flex;
+  gap: var(--spacing-2);
+  padding-top: var(--spacing-3);
+  border-top: 1px solid var(--border-color);
+}
+
+.card-actions button {
+  flex: 1;
+}
+
+/* ==========================================================================
+   SKELETONS
+   --------------------------------------------------------------------------
+   Sized to the real card so nothing shifts when the data lands.
+   ========================================================================== */
+
+.skeleton {
+  background-color: var(--skeleton-base);
+  background-image: linear-gradient(
+    90deg,
+    var(--skeleton-base) 0%,
+    var(--skeleton-sheen) 45%,
+    var(--skeleton-base) 90%
+  );
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  border-radius: var(--radius-md);
+  animation: skeleton-shimmer 1.4s linear infinite;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+
+.recipe-card--skeleton {
+  box-shadow: var(--shadow-md);
+}
+
+.recipe-card--skeleton:hover {
+  transform: none;
+}
+
+.skeleton-image {
+  height: 180px; /* matches .card-image-container img */
+  border-radius: 0;
+}
+
+.skeleton-hero {
+  aspect-ratio: 16 / 9;
+  max-height: 50vh;
+  width: 100%;
+  border-radius: var(--radius-2xl);
+  margin-bottom: var(--spacing-6);
+}
+
+.skeleton-line {
+  height: 0.85rem;
+  margin-bottom: var(--spacing-3);
+}
+
+.skeleton-line--title {
+  height: 1.35rem;
+  width: 70%;
+}
+
+.skeleton-line--short {
+  width: 45%;
+}
+
+/* ==========================================================================
+   PAGINATION
+   ========================================================================== */
+
+.pagination-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin: var(--spacing-8) auto 0;
+  padding: 0 var(--spacing-4);
+}
+
+.pagination-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-height: 44px;
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--button-secondary-text);
+  background-color: var(--button-secondary-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.pagination-controls button:hover:not(:disabled) {
+  background-color: var(--button-secondary-hover);
+}
+
+.pagination-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-controls span {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--secondary-text);
+}
+
+/* ==========================================================================
+   FLOATING ADD BUTTON
+   ========================================================================== */
+
+.floating-add-btn {
+  position: fixed;
+  right: var(--spacing-6);
+  bottom: var(--spacing-6);
+  z-index: var(--z-floating);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: 56px;
+  padding: 0 var(--spacing-6);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--button-primary-text);
+  background-color: var(--button-primary-bg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-xl);
+  cursor: pointer;
+  transition: background-color var(--transition), transform var(--transition);
+}
+
+.floating-add-btn:hover {
+  background-color: var(--button-primary-hover);
+  transform: translateY(-2px);
+}
+
+.floating-add-btn .plus-icon {
+  flex: none;
+}
+
+.floating-add-btn .text {
+  white-space: nowrap;
+}
+
+/* Collapses to a circular icon-only button on small screens. The label is
+   removed visually only — the button keeps its text as the accessible name. */
+@media (max-width: 640px) {
+  .floating-add-btn {
+    right: var(--spacing-4);
+    bottom: var(--spacing-4);
+    width: 56px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .floating-add-btn .text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* ==========================================================================
+   MODAL
+   ========================================================================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal); /* above the sticky header at --z-header */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-4);
+  background-color: var(--overlay-scrim);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 34rem;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain; /* stops scroll chaining to the page behind */
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+}
+
+.modal-content--wide {
+  max-width: 54rem;
+}
+
+.modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  padding: var(--spacing-5) var(--spacing-6);
+  background-color: var(--card-background);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: calc(var(--spacing-2) * -1) calc(var(--spacing-2) * -1) 0 0;
+  padding: 0;
+  color: var(--secondary-text);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.modal-close:hover {
+  color: var(--primary-text);
+  background-color: var(--surface-hover);
+}
+
+.modal-body {
+  padding: var(--spacing-6);
+}
+
+/* A header whose only heading is visually hidden collapses to just the close
+   button; keep it from looking like an empty bar. */
+.modal-header:has(> .visually-hidden) {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-content {
+    max-width: none;
+    max-height: 92dvh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+
+  .modal-header,
+  .modal-body {
+    padding: var(--spacing-4);
+  }
+}
+
+/* Confirmation dialogs */
+
+.confirm-message {
+  margin: 0 0 var(--spacing-6);
+  color: var(--secondary-text);
+}
+
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+}
+
+/* ==========================================================================
+   FORMS
+   ========================================================================== */
+
+.form-container,
+.auth-container {
+  width: 100%;
+  max-width: 38rem;
+  margin: var(--spacing-8) auto;
+  padding: var(--spacing-8);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.form-container > h1,
+.auth-container > h1 {
+  margin-bottom: var(--spacing-6);
+  text-align: center;
+}
+
+.form-container form,
+.auth-container form,
+.recipe-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+/* Label above control, hint below it. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.field > label,
+.field > legend {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+fieldset.field {
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+fieldset.field > legend {
+  padding-inline: var(--spacing-2);
+  margin-left: calc(var(--spacing-2) * -1);
+}
+
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--text-faint);
+}
+
+.form-errors {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  margin: 0;
+  padding: var(--spacing-3) var(--spacing-4);
+  color: var(--danger-text);
+  background-color: var(--danger-surface);
+  border: 1px solid var(--danger-border);
+  border-left: 4px solid var(--danger-color);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+}
+
+.form-errors ul {
+  margin: 0;
+  padding-left: var(--spacing-5);
+}
+
+.form-errors .icon {
+  margin-top: 0.15em;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-2);
+}
+
+/* Image pickers */
+
+.image-preview,
+.avatar-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-3);
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-lg);
+}
+
+.image-preview img {
+  width: 100%;
+  max-width: 16rem;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+
+/* Ingredients */
+
+.ingredients-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.ingredient-field {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+.ingredient-field .ingredient-amount {
+  flex: 1 1 8rem;
+}
+
+.ingredient-field .ingredient-name {
+  flex: 2 1 12rem;
+}
+
+.remove-ingredient-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: var(--danger-text);
+  background-color: transparent;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.remove-ingredient-btn:hover {
+  color: var(--danger-contrast);
+  background-color: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
+.add-ingredient-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  align-self: flex-start;
+  min-height: 44px;
+  padding: var(--spacing-2) var(--spacing-4);
+  font-weight: 500;
+  color: var(--secondary-text);
+  background-color: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+    border-color var(--transition);
+}
+
+.add-ingredient-btn:hover {
+  color: var(--primary-text);
+  background-color: var(--surface-hover);
+  border-style: solid;
+}
+
+/* Stack the amount, the name, and the remove button once a row can no longer
+   hold three controls comfortably. */
+@media (max-width: 560px) {
+  .ingredient-field {
+    flex-direction: column;
+    padding-bottom: var(--spacing-3);
+    border-bottom: 1px dashed var(--border-color);
+  }
+
+  .remove-ingredient-btn {
+    align-self: flex-end;
+    width: auto;
+    padding-inline: var(--spacing-4);
+  }
+}
+
+/* ==========================================================================
+   RICH TEXT EDITOR (Tiptap)
+   ========================================================================== */
+
+.tiptap-wrapper {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background-color: var(--card-background);
+}
+
+.tiptap-wrapper:focus-within {
+  border-color: var(--accent);
+}
+
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+  padding: var(--spacing-2);
+  background-color: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.editor-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: var(--secondary-text);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.editor-toolbar button:hover {
+  color: var(--primary-text);
+  background-color: var(--surface-hover);
+}
+
+/* Pressed state: filled, plus an inset line so the difference survives
+   greyscale and forced-colours rendering. */
+.editor-toolbar button.is-active,
+.editor-toolbar button[aria-pressed='true'] {
+  color: var(--button-primary-text);
+  background-color: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+  box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.25);
+}
+
+.tiptap-editor {
+  min-height: 10rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  padding: var(--spacing-3) var(--spacing-4);
+  color: var(--primary-text);
+  background-color: var(--card-background);
+  outline: none; /* the wrapper's :focus-within border is the replacement */
+}
+
+.tiptap-editor > * + * {
+  margin-top: 0.75em;
+}
+
+.tiptap-editor ul,
+.tiptap-editor ol {
+  padding-left: var(--spacing-6);
+}
+
+.tiptap-editor li > p {
+  margin: 0.2em 0;
+}
+
+.tiptap-editor blockquote {
+  margin: 0.75em 0;
+  padding-left: var(--spacing-4);
+  border-left: 3px solid var(--border-strong);
+  color: var(--secondary-text);
+}
+
+/* Placeholder for an empty document. The editor element carries
+   `data-placeholder`; Tiptap adds `is-editor-empty` to the first node. */
+.tiptap-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   RECIPE DETAIL
+   ========================================================================== */
+
+.recipe-detail {
+  width: 100%;
+  max-width: var(--reading-max);
+  margin: 0 auto;
+  padding: var(--spacing-6) var(--spacing-4) 0;
+}
+
+.breadcrumb {
+  margin-bottom: var(--spacing-4);
+  font-size: 0.9rem;
+}
+
+.breadcrumb a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  font-weight: 500;
+  color: var(--secondary-text);
+}
+
+.breadcrumb a:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.recipe-hero {
+  overflow: hidden;
+  border-radius: var(--radius-2xl);
+  background-color: var(--surface-sunken);
+  box-shadow: var(--shadow-lg);
+}
+
+.recipe-hero img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  /* Never let a tall photo push the whole article below the fold. */
+  max-height: 50vh;
+  object-fit: cover;
+}
+
+.recipe-detail-header {
+  padding: var(--spacing-6) 0 var(--spacing-4);
+}
+
+.recipe-detail-header h1 {
+  margin-bottom: var(--spacing-3);
+}
+
+.recipe-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2) var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+  font-size: 0.9rem;
+  color: var(--secondary-text);
+}
+
+.recipe-author {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-weight: 500;
+  color: var(--secondary-text);
+}
+
+.recipe-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-4);
+}
+
+.rating-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-4) var(--spacing-8);
+  padding: var(--spacing-4) var(--spacing-5);
+  margin-bottom: var(--spacing-6);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+}
+
+.rating-section .field-hint {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.average-rating,
+.user-rating {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.average-rating span,
+.user-rating span {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--secondary-text);
+}
+
+.recipe-overview {
+  font-size: 1.05rem;
+  color: var(--secondary-text);
+}
+
+.ingredient-list {
+  margin: 0 0 var(--spacing-6);
+  padding: 0;
+  list-style: none;
+}
+
+.ingredient-list li {
+  display: flex;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ingredient-list li:last-child {
+  border-bottom: 0;
+}
+
+/* The read-only amount in a rendered recipe — distinct from the input of the
+   same class inside `.ingredient-field`. */
+.ingredient-list .ingredient-amount {
+  flex: none;
+  min-width: 5.5rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--secondary-text);
+}
+
+.ingredient-list strong {
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+/* --------------------------------------------------------------------------
+   Rendered rich text
+   Author-authored HTML, so every element the editor can emit needs a rule.
+   -------------------------------------------------------------------------- */
+
+.instruction-content {
+  margin-bottom: var(--spacing-8);
+  color: var(--secondary-text);
+  /* Read at a distance, standing up — a step above body copy. */
+  font-size: var(--text-instructions);
+  line-height: var(--leading-instructions);
+}
+
+.instruction-content > *:first-child {
+  margin-top: 0;
+}
+
+.instruction-content p {
+  margin: 0 0 1em;
+}
+
+.instruction-content h1,
+.instruction-content h2,
+.instruction-content h3,
+.instruction-content h4 {
+  margin: 1.5em 0 0.5em;
+  color: var(--primary-text);
+}
+
+.instruction-content h1 {
+  font-size: 1.4rem;
+}
+
+.instruction-content h2 {
+  font-size: 1.25rem;
+}
+
+.instruction-content h3 {
+  font-size: 1.1rem;
+}
+
+.instruction-content h4 {
+  font-size: 1rem;
+}
+
+.instruction-content ul,
+.instruction-content ol {
+  margin: 0 0 1em;
+  padding-left: var(--spacing-6);
+}
+
+.instruction-content li {
+  margin-bottom: 0.4em;
+}
+
+.instruction-content li > p {
+  margin: 0;
+}
+
+.instruction-content strong {
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+.instruction-content em {
+  font-style: italic;
+}
+
+.instruction-content blockquote {
+  margin: 1em 0;
+  padding: var(--spacing-2) var(--spacing-4);
+  border-left: 3px solid var(--accent);
+  background-color: var(--surface-sunken);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.instruction-content code {
+  padding: 0.1em 0.35em;
+  color: var(--primary-text);
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.instruction-content pre {
+  margin: 0 0 1em;
+  padding: var(--spacing-4);
+  overflow-x: auto; /* code scrolls inside itself, never the page */
+  color: var(--primary-text);
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.instruction-content pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.instruction-content hr {
+  margin: 1.5em 0;
+}
+
+/* ==========================================================================
+   STAR RATING
+   ========================================================================== */
+
+.star-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  /* `.star` icons are fill="currentColor"; filled versus empty is the icon
+     path, so one colour serves both. */
+  color: var(--star-color);
+}
+
+.star {
+  fill: currentColor;
+}
+
+.star-rating--readonly {
+  line-height: 0;
+}
+
+.star-rating--interactive {
+  gap: 0;
+}
+
+.star-button {
+  /* A real <button> in a radiogroup: strip the chrome, keep the focus ring. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.star-button:hover:not(:disabled) {
+  background-color: var(--surface-hover);
+  transform: scale(1.08);
+}
+
+/* The chosen star is marked by a persistent tint, so "selected" stays
+   distinguishable from the transient hover/focus highlight. */
+.star-button[aria-checked='true'] {
+  border-color: var(--star-color);
+  background-color: color-mix(in srgb, var(--star-color) 16%, transparent);
+}
+
+.star-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ==========================================================================
+   COMMENTS
+   ========================================================================== */
+
+.comments-section {
+  margin-top: var(--spacing-8);
+  padding-top: var(--spacing-6);
+  border-top: 1px solid var(--border-color);
+}
+
+.comments-section > h2 {
+  margin-bottom: var(--spacing-5);
+}
+
+.comments-section .count {
+  font-weight: 500;
+  color: var(--secondary-text);
+}
+
+.comment-form,
+.comment-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-6);
+}
+
+.comment-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+.login-to-comment,
+.empty-comments {
+  padding: var(--spacing-4);
+  text-align: center;
+  color: var(--secondary-text);
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-lg);
+}
+
+.login-to-comment a {
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.comments-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comment {
+  padding: var(--spacing-4) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.comment:last-child {
+  border-bottom: 0;
+}
+
+.comment-author-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2) var(--spacing-3);
+  margin-bottom: var(--spacing-2);
+}
+
+.comment-avatar {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  object-fit: cover;
+  border-radius: var(--radius-full);
+  background-color: var(--surface-sunken);
+}
+
+.comment-author-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+.comment-date,
+.comment-edited {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+
+.comment-text {
+  margin: 0 0 var(--spacing-2);
+  color: var(--secondary-text);
+  white-space: pre-wrap; /* comments are plain text; keep the author's breaks */
+}
+
+.comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.comment-edit-form {
+  margin-bottom: 0;
+}
+
+.comment-edit-form .comment-actions {
+  justify-content: flex-end;
+}
+
+/* ==========================================================================
+   AUTH
+   ========================================================================== */
+
+.auth-container {
+  max-width: 26rem;
+  text-align: center;
+}
+
+.auth-container .field {
+  text-align: left;
+}
+
+.auth-container form > .btn-primary {
+  width: 100%;
+}
+
+.auth-links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-4);
+}
+
+.toggle-auth,
+.forgot-password-btn {
+  padding: var(--spacing-2);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--secondary-text);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.toggle-auth:hover,
+.forgot-password-btn:hover {
+  color: var(--accent);
+}
+
+.auth-separator {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  margin: var(--spacing-6) 0;
+  font-size: 0.85rem;
+  color: var(--text-faint);
+}
+
+.auth-separator::before,
+.auth-separator::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Google's mark is fixed-colour, so the button keeps its own light surface in
+   both themes rather than inheriting the dark one. The near-black ink on it
+   stays at 16:1 either way; a strong border keeps it from floating on the dark
+   background. */
+.google-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-3);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1f1f1f;
+  background-color: #ffffff;
+  border: 1px solid #747775;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: box-shadow var(--transition), background-color var(--transition);
+}
+
+.google-button:hover:not(:disabled) {
+  background-color: #f3f3f3;
+  box-shadow: 0 1px 3px rgb(60 64 67 / 0.3);
+}
+
+.google-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+:root[data-theme='dark'] .google-button {
+  border-color: #ffffff;
+}
+
+/* ==========================================================================
+   PROFILE
+   ========================================================================== */
+
+.profile-header {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-8);
+  padding: var(--spacing-6);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.profile-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-5);
+  min-width: 0;
+}
+
+.profile-info h1 {
+  margin-bottom: var(--spacing-1);
+  font-size: 1.5rem;
+}
+
+.profile-avatar {
+  width: 96px;
+  height: 96px;
+  flex: none;
+  object-fit: cover;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--border-color);
+  background-color: var(--surface-sunken);
+}
+
+.profile-avatar--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+}
+
+.profile-bio {
+  margin: 0 0 var(--spacing-2);
+  font-style: italic;
+  color: var(--secondary-text);
+  max-width: 40rem;
+}
+
+.profile-stats {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.edit-profile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--button-secondary-text);
+  background-color: var(--button-secondary-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  white-space: nowrap;
+}
+
+.edit-profile-btn:hover {
+  color: var(--button-secondary-text);
+  background-color: var(--button-secondary-hover);
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .profile-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .profile-info {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* ==========================================================================
+   EMPTY / ERROR / LOADING STATES
+   ========================================================================== */
+
+.empty-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+  max-width: 34rem;
+  margin: var(--spacing-8) auto;
+  padding: var(--spacing-8) var(--spacing-6);
+  text-align: center;
+  color: var(--secondary-text);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  /* When the grid renders an empty state instead of cards it should span the
+     full width rather than sit in one column. */
+  grid-column: 1 / -1;
+}
+
+.empty-state .icon,
+.error-state .icon {
+  color: var(--text-faint);
+}
+
+.error-state .icon {
+  color: var(--danger-color);
+}
+
+.empty-state-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+.empty-state-message,
+.error-state p {
+  margin: 0;
+  color: var(--secondary-text);
+}
+
+.error-state h2 {
+  margin: 0;
+}
+
+.error-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-2);
+}
+
+.empty-state > .btn-primary,
+.empty-state > .btn-secondary,
+.error-state > .btn-primary {
+  margin-top: var(--spacing-2);
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  min-height: 50vh;
+  color: var(--secondary-text);
+}
+
+.spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid var(--border-color);
+  border-top-color: var(--accent);
+  border-radius: var(--radius-full);
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================================================
+   RESPONSIVE — header and filters
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  header {
+    padding: var(--spacing-2) var(--spacing-3);
+    gap: var(--spacing-2);
+  }
+
+  .header-logo {
+    height: 32px;
+  }
+
+  .header-nav {
+    gap: var(--spacing-1) var(--spacing-3);
+  }
+
+  /* The name is a nicety; the avatar-free nav needs the room more. */
+  .user-greeting {
+    display: none;
+  }
+
+  .nav-link,
+  .login-button,
+  .logout-button {
+    font-size: 0.85rem;
+  }
+
+  /* One row of tag chips that scrolls sideways inside its own box. The
+     container is width-constrained, so this cannot leak into a page-level
+     horizontal scrollbar. */
+  .tag-filter-container {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: var(--spacing-2);
+    scrollbar-width: thin;
+  }
+
+  .filter-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .form-container,
+  .auth-container {
+    padding: var(--spacing-5);
+    margin-inline: var(--spacing-3);
+    max-width: none;
+    width: auto;
+  }
+}
+
+@media (max-width: 360px) {
+  /* Two full-width buttons plus a gap no longer fit; let them wrap. */
+  .card-actions,
+  .form-actions,
+  .confirm-actions {
+    flex-wrap: wrap;
+  }
+
+  .card-actions button {
+    flex: 1 1 100%;
+  }
+}
+
+@media (min-width: 1024px) {
+  header {
+    padding-inline: var(--spacing-8);
+  }
+
+  .home-page,
+  .saved-recipes-page,
+  .profile-page,
+  .recipe-detail {
+    padding-inline: var(--spacing-8);
+  }
+}
+
+/* ==========================================================================
+   KEYCAPS
+   --------------------------------------------------------------------------
+   `kbd` appears in the palette, the shortcut sheet and the header trigger.
+   One rule serves all three so a key always looks like the same key.
+   ========================================================================== */
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6em;
+  padding: 0.15em 0.4em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--secondary-text);
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  /* The lip that makes it read as a physical key rather than a code span. */
+  border-bottom-width: 2px;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+}
+
+kbd + kbd {
+  margin-left: var(--spacing-1);
+}
+
+/* ==========================================================================
+   SEARCH TERM HIGHLIGHTING
+   ========================================================================== */
+
+mark {
+  padding: 0 0.18em;
+  color: var(--mark-text);
+  background-color: var(--mark-bg);
+  border-radius: var(--radius-sm);
+  /* Card titles and overviews clamp with -webkit-line-clamp; a boxed mark must
+     not add leading and push a line out of the clamp. */
+  line-height: inherit;
+}
+
+/* ==========================================================================
+   METADATA STRIP
+   --------------------------------------------------------------------------
+   `--detail` — icon + label + value, divided. `--card` — value only, inline
+   and secondary. Both are the same list, so a recipe reads the same either
+   way to a screen reader.
+   ========================================================================== */
+
+.metadata-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.metadata-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.metadata-text {
+  display: flex;
+  min-width: 0;
+}
+
+.metadata-strip--detail {
+  gap: var(--spacing-2) 0;
+  margin-bottom: var(--spacing-4);
+}
+
+.metadata-strip--detail .metadata-item {
+  padding-inline: var(--spacing-4);
+}
+
+.metadata-strip--detail .metadata-item:first-child {
+  padding-inline-start: 0;
+}
+
+/* Divider between groups. On a wrapped row the first item of the new line
+   keeps its rule, which reads as a continuation rather than a mistake. */
+.metadata-strip--detail .metadata-item + .metadata-item {
+  border-inline-start: 1px solid var(--border-color);
+}
+
+.metadata-strip--detail .metadata-item > .icon {
+  color: var(--accent);
+}
+
+.metadata-strip--detail .metadata-text {
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.metadata-strip--detail .metadata-label {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.metadata-strip--detail .metadata-value {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+.metadata-strip--card {
+  gap: var(--spacing-1) var(--spacing-3);
+  font-size: var(--text-xs);
+  color: var(--secondary-text);
+}
+
+.metadata-strip--card .metadata-item {
+  gap: var(--spacing-1);
+}
+
+.metadata-strip--card .metadata-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The label is redundant next to the icon in the compact form, but a screen
+   reader has no icon — so it is hidden visually, not removed. */
+.metadata-strip--card .metadata-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   SERVINGS STEPPER
+   ========================================================================== */
+
+.servings-stepper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2) var(--spacing-3);
+}
+
+.servings-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--secondary-text);
+}
+
+.servings-controls {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+}
+
+.servings-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Icon-only, and used with sticky fingers at the counter. */
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: var(--primary-text);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.servings-controls button:hover:not(:disabled) {
+  background-color: var(--surface-hover);
+  color: var(--accent);
+}
+
+.servings-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.servings-value {
+  min-width: 2.5ch;
+  text-align: center;
+  font-size: var(--text-body);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary-text);
+}
+
+.servings-adjusted {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+
+/* The multiplier is the answer to "am I looking at the original amounts?", so
+   it is a label with a word beside it, not colour on its own. */
+.servings-factor {
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-contrast);
+  background-color: var(--accent);
+  border-radius: var(--radius-full);
+}
+
+/* ==========================================================================
+   INGREDIENTS — checkable rows
+   --------------------------------------------------------------------------
+   The native checkbox is the control: it stays in the DOM, focusable and
+   operable, merely painted over by `.ingredient-check-box`. Everything visual
+   is driven from its `:checked` / `:focus-visible` state through a sibling
+   selector, so keyboard, screen reader and pointer all get the same widget.
+   ========================================================================== */
+
+.ingredient-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.ingredient-section .ingredient-list {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.ingredient-row {
+  align-items: stretch;
+  /* The label supplies the padding, so the tap target reaches the row edges. */
+  padding: 0;
+}
+
+/* The read-only rendering (cook mode) has no label to pad it. */
+.ingredient-row:not(:has(.ingredient-check)) {
+  align-items: baseline;
+  padding: var(--spacing-2) 0;
+}
+
+.ingredient-check {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex: 1;
+  min-width: 0;
+  /* Comfortable tap target: the whole row, not just the box. */
+  min-height: 44px;
+  padding: var(--spacing-2) var(--spacing-2) var(--spacing-2) 0;
+  font-weight: 400;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast);
+}
+
+.ingredient-check:hover {
+  background-color: var(--surface-hover);
+}
+
+.ingredient-check input[type='checkbox'] {
+  /* Not `display:none` and not `visibility:hidden` — either would take the
+     input out of the tab order and out of the accessibility tree. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.ingredient-check-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-inline-start: var(--spacing-1);
+  color: transparent;
+  background-color: var(--card-background);
+  /* 3.6:1 against the card in light, 3.4:1 in dark — the control boundary. */
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.ingredient-check input:checked + .ingredient-check-box {
+  color: var(--accent-contrast);
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* The ring the input would have drawn itself, relocated onto its stand-in. */
+.ingredient-check input:focus-visible + .ingredient-check-box {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.ingredient-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--spacing-1) var(--spacing-3);
+  min-width: 0;
+}
+
+/* Struck *and* dimmed *and* the box is filled: three signals, none of them
+   colour alone. */
+.ingredient-row.is-checked .ingredient-text {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.ingredient-unscaled {
+  padding: 0 var(--spacing-2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--danger-text);
+  background-color: var(--danger-surface);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   COOK MODE
+   --------------------------------------------------------------------------
+   The centrepiece. A full-viewport opaque layer — deliberately not a
+   translucent scrim, because it has to be legible under kitchen downlights
+   with the page still behind it. Its own palette, its own z-layer.
+   ========================================================================== */
+
+.cook-mode {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-cook);
+  display: grid;
+  /* header · progress · body (all remaining height) · nav */
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  /* 100dvh, not 100vh: mobile browser chrome must not push the nav bar off. */
+  height: 100dvh;
+  color: var(--cook-text);
+  background-color: var(--cook-bg);
+  overscroll-behavior: contain;
+}
+
+.cook-mode:focus {
+  outline: none; /* it is a programmatic focus target, not a control */
+}
+
+.cook-mode-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4) var(--spacing-5);
+  padding-top: max(var(--spacing-4), env(safe-area-inset-top));
+}
+
+.cook-mode-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2) var(--spacing-4);
+  min-width: 0;
+}
+
+.cook-mode-title h2 {
+  margin: 0;
+  font-size: var(--text-h3);
+  font-weight: 600;
+  color: var(--cook-text);
+}
+
+.cook-mode-wakelock {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--cook-muted);
+  border: 1px solid var(--cook-border);
+  border-radius: var(--radius-full);
+}
+
+.cook-mode-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  /* Larger than the 44px floor: it is the way out, hit with a wet thumb. */
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  color: var(--cook-text);
+  background: none;
+  border: 1px solid var(--cook-border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.cook-mode-close:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.cook-mode-progress {
+  height: 6px;
+  background-color: var(--cook-surface);
+  border-block: 1px solid var(--cook-border);
+}
+
+.cook-mode-progress-bar {
+  height: 100%;
+  background-color: var(--accent);
+  transition: width var(--transition);
+}
+
+.cook-mode-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--spacing-6);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--spacing-6) var(--spacing-5);
+}
+
+.cook-mode-counter {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cook-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cook-mode-step {
+  /* The one number that matters in this component. */
+  font-size: clamp(1.25rem, 3.5vw, 1.75rem);
+  line-height: 1.6;
+  color: var(--cook-text);
+}
+
+.cook-mode-step > div > *:first-child {
+  margin-top: 0;
+}
+
+.cook-mode-step > div > *:last-child {
+  margin-bottom: 0;
+}
+
+.cook-mode-step ul,
+.cook-mode-step ol {
+  margin: 0;
+  padding-inline-start: 1.2em;
+}
+
+.cook-mode-step li + li {
+  margin-top: 0.5em;
+}
+
+.cook-mode-ingredients {
+  padding: var(--spacing-4) var(--spacing-5);
+  background-color: var(--cook-surface);
+  border: 1px solid var(--cook-border);
+  border-radius: var(--radius-xl);
+}
+
+.cook-mode-ingredients h3 {
+  margin: 0 0 var(--spacing-3);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cook-muted);
+}
+
+.cook-mode-ingredients ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-instructions);
+  line-height: 1.5;
+  color: var(--cook-text);
+}
+
+.cook-mode-ingredients li + li {
+  margin-top: var(--spacing-3);
+  padding-top: var(--spacing-3);
+  border-top: 1px solid var(--cook-border);
+}
+
+.cook-mode-ingredients strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.cook-mode-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-5);
+  padding-bottom: max(var(--spacing-4), env(safe-area-inset-bottom));
+  background-color: var(--cook-surface);
+  border-top: 1px solid var(--cook-border);
+}
+
+.cook-mode-prev,
+.cook-mode-next {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  /* Thumb-sized, at the bottom of the screen where a thumb already is. */
+  min-height: 56px;
+  min-width: 7rem;
+  padding: 0 var(--spacing-5);
+  font-size: var(--text-body);
+  font-weight: 700;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.cook-mode-prev {
+  color: var(--cook-text);
+  background: none;
+  border-color: var(--cook-border);
+}
+
+.cook-mode-prev:hover:not(:disabled) {
+  background-color: var(--cook-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.cook-mode-prev:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cook-mode-next {
+  color: var(--accent-contrast);
+  background-color: var(--accent);
+}
+
+.cook-mode-next:hover {
+  background-color: var(--accent-hover);
+}
+
+.cook-mode-finish {
+  color: var(--button-primary-text);
+  background-color: var(--button-primary-bg);
+}
+
+.cook-mode-finish:hover {
+  background-color: var(--button-primary-hover);
+}
+
+.cook-mode-dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  /* Shrinks before the nav buttons do, and never widens the row. */
+  flex: 0 1 auto;
+  min-width: 0;
+  max-height: 3.5rem;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cook-mode-dots li {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background-color: transparent;
+  border: 1px solid var(--cook-border);
+  transition: background-color var(--transition), transform var(--transition);
+}
+
+.cook-mode-dots li.is-done {
+  background-color: var(--cook-border);
+}
+
+.cook-mode-dots li.is-current {
+  /* Size as well as fill, so the current step survives greyscale. */
+  transform: scale(1.6);
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.cook-mode-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-5);
+  grid-row: 1 / -1;
+  height: 100%;
+  padding: var(--spacing-8);
+  text-align: center;
+  color: var(--cook-text);
+}
+
+@media (min-width: 900px) {
+  /* Desktop: a readable measure in the middle, ingredients as a sidebar. */
+  .cook-mode-body {
+    grid-template-columns: minmax(0, 65ch) minmax(0, 22rem);
+    justify-content: center;
+    column-gap: var(--spacing-10);
+    padding-inline: var(--spacing-8);
+  }
+
+  .cook-mode-ingredients {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: start;
+    position: sticky;
+    top: 0;
+  }
+
+  .cook-mode-step {
+    grid-column: 1;
+  }
+
+  .cook-mode-counter {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 639px) {
+  /* Decorative (the element is aria-hidden) and the first thing to go when the
+     row gets tight — the counter above already says "Step 3 of 9". */
+  .cook-mode-dots {
+    display: none;
+  }
+
+  .cook-mode-prev,
+  .cook-mode-next {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* ==========================================================================
+   COMMAND PALETTE
+   --------------------------------------------------------------------------
+   Anchored near the top rather than vertically centred: the list grows
+   downward as you type, and a centred box would jump on every keystroke.
+   ========================================================================== */
+
+.palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--spacing-4);
+  padding-top: min(12vh, 6rem);
+  background-color: var(--overlay-scrim);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 40rem;
+  max-height: min(70dvh, 34rem);
+  overflow: hidden;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+}
+
+.palette-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex: none;
+  padding: var(--spacing-3) var(--spacing-4);
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.palette-input {
+  /* Overrides the global input chrome: the row is the field. */
+  flex: 1;
+  min-width: 0;
+  padding: var(--spacing-2) 0;
+  font-size: 1.0625rem; /* ≥16px so iOS Safari does not zoom on focus */
+  color: var(--primary-text);
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+
+.palette-input:focus-visible {
+  background: none;
+  outline: none; /* the palette itself is the focus indicator here */
+}
+
+.palette-esc {
+  flex: none;
+}
+
+.palette-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: var(--spacing-2);
+  list-style: none;
+}
+
+.palette-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  min-height: 44px;
+  padding: var(--spacing-2) var(--spacing-3);
+  color: var(--secondary-text);
+  /* Reserves the width of the active marker so selection does not shift text. */
+  border-inline-start: 3px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+/* Selection is driven by the arrow keys, so it must not be expressed with
+   `:hover`. The tint alone is only ~1.2:1 against the card, so it is backed by
+   the accent bar and a weight change — and `aria-selected` on the option is
+   what actually carries it to assistive tech. */
+.palette-option.is-active {
+  color: var(--primary-text);
+  background-color: var(--accent-soft);
+  border-inline-start-color: var(--accent);
+  font-weight: 600;
+}
+
+.palette-option.is-active > .icon {
+  color: var(--accent);
+}
+
+.palette-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-kind {
+  flex: none;
+  padding: 0 var(--spacing-2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--tag-text);
+  background-color: var(--tag-bg);
+  border-radius: var(--radius-full);
+}
+
+.palette-empty {
+  padding: var(--spacing-5) var(--spacing-3);
+  text-align: center;
+  color: var(--text-faint);
+}
+
+.palette-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2) var(--spacing-5);
+  flex: none;
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  background-color: var(--surface-sunken);
+  border-top: 1px solid var(--border-color);
+}
+
+.palette-footer span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+
+/* The header affordance that opens it. */
+.palette-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: 40px;
+  padding: 0 var(--spacing-3);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--secondary-text);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition);
+}
+
+.palette-trigger:hover {
+  color: var(--primary-text);
+  border-color: var(--accent);
+}
+
+.palette-trigger-text {
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  /* Collapses to the magnifier. The button keeps its aria-label, so it stays
+     named — but it is now icon-only and owes the 44px floor. */
+  .palette-trigger {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .palette-trigger-text,
+  .palette-trigger kbd {
+    display: none;
+  }
+
+  .palette-overlay {
+    padding-top: var(--spacing-4);
+  }
+
+  .palette {
+    max-height: min(80dvh, 40rem);
+  }
+}
+
+/* ==========================================================================
+   HOME — featured hero
+   --------------------------------------------------------------------------
+   One big link. Everything here is aimed at making that obvious without a
+   button: the lift, the border shift, the arrow that slides.
+   ========================================================================== */
+
+.featured {
+  margin-bottom: var(--spacing-8);
+}
+
+.featured-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+  color: var(--primary-text);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+  transition: transform var(--transition), box-shadow var(--transition),
+    border-color var(--transition);
+}
+
+.featured-card:hover {
+  color: var(--primary-text);
+  text-decoration: none;
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-xl);
+}
+
+/* The card is the link, so the ring belongs to the whole card. */
+.featured-card:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--radius-2xl);
+}
+
+.featured-image {
+  overflow: hidden;
+  background-color: var(--surface-sunken);
+}
+
+.featured-image img {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  transition: transform 400ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.featured-card:hover .featured-image img {
+  transform: scale(1.04);
+}
+
+.featured-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-6);
+}
+
+.featured-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent-contrast);
+  background-color: var(--accent);
+  border-radius: var(--radius-full);
+}
+
+.featured-title {
+  margin: 0;
+  /* The largest type on the site — this is the page's anchor. */
+  font-size: var(--text-display);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.featured-overview {
+  margin: 0;
+  font-size: var(--text-body);
+  color: var(--secondary-text);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.featured-rating {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--secondary-text);
+}
+
+.featured-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-top: auto;
+  padding-top: var(--spacing-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.featured-cta .icon {
+  transition: transform var(--transition);
+}
+
+.featured-card:hover .featured-cta .icon {
+  transform: translateX(3px);
+}
+
+@media (min-width: 768px) {
+  .featured-card {
+    /* Editorial split: picture and words side by side, words a little wider. */
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    align-items: stretch;
+  }
+
+  .featured-image img {
+    aspect-ratio: auto;
+    min-height: 22rem;
+  }
+
+  .featured-body {
+    padding: var(--spacing-8);
+  }
+}
+
+/* ==========================================================================
+   HOME — recently viewed rail, filter chips
+   ========================================================================== */
+
+.section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2) var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+}
+
+.section-header h1,
+.section-header h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: 0;
+  min-width: 0;
+}
+
+.section-header .field-hint {
+  margin: var(--spacing-1) 0 0;
+}
+
+.recently-viewed {
+  margin-bottom: var(--spacing-8);
+}
+
+/* Rails: a scroll strip on a phone, a grid on a desktop. `overflow-x` makes
+   each rail its own scroll container, so an overlong list can never reach the
+   document and produce a page-level horizontal scrollbar. */
+.recent-rail,
+.related-list {
+  display: flex;
+  gap: var(--spacing-3);
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 var(--spacing-2);
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.recent-rail > li,
+.related-list > .related-item {
+  flex: 0 0 min(60%, 11rem);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+.recent-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  height: 100%;
+  padding: var(--spacing-2);
+  color: var(--primary-text);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.recent-item:hover {
+  color: var(--accent);
+  text-decoration: none;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+
+.recent-item img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  background-color: var(--surface-sunken);
+}
+
+.recent-item > span {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-5);
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: 36px;
+  max-width: 100%;
+  padding: 0 var(--spacing-3);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--tag-text);
+  background-color: var(--tag-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+    border-color var(--transition);
+}
+
+.filter-chip > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-chip:hover {
+  color: var(--danger-contrast);
+  background-color: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
+.filter-control {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.filter-control > label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--primary-text);
+}
+
+.filter-control > select {
+  width: auto;
+  max-width: 12rem;
+  padding-block: var(--spacing-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   RECIPE DETAIL — layout, hero affordance, related
+   ========================================================================== */
+
+.recipe-detail-header h1 {
+  font-size: var(--text-display);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.recipe-cuisine {
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--tag-text);
+  background-color: var(--tag-bg);
+  border-radius: var(--radius-full);
+}
+
+.recipe-cuisine:hover {
+  color: var(--accent-contrast);
+  background-color: var(--accent);
+  text-decoration: none;
+}
+
+/* The hero is a button wrapping the image; strip the chrome, keep the ring. */
+.recipe-hero-button {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: zoom-in;
+}
+
+.recipe-hero-expand {
+  position: absolute;
+  right: var(--spacing-3);
+  bottom: var(--spacing-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--primary-text);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  /* Visible by default rather than hover-only: on a touch screen there is no
+     hover, and this is the only hint the image opens. */
+  opacity: 0.9;
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.recipe-hero-button:hover .recipe-hero-expand,
+.recipe-hero-button:focus-visible .recipe-hero-expand {
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+.lightbox-image {
+  width: auto;
+  max-width: 100%;
+  max-height: 78dvh;
+  margin: 0 auto;
+  object-fit: contain;
+  border-radius: var(--radius-lg);
+}
+
+.recipe-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-8);
+  margin-bottom: var(--spacing-8);
+}
+
+.recipe-ingredients,
+.recipe-instructions {
+  min-width: 0;
+}
+
+.recipe-instructions > h2 {
+  margin-bottom: var(--spacing-4);
+}
+
+@media (min-width: 900px) {
+  /* The two-column body needs more than the 46rem reading measure to give the
+     instructions a decent line length beside a 320px sidebar. The prose blocks
+     that are not in the grid keep their own measure below. */
+  .recipe-detail {
+    max-width: 64rem;
+  }
+
+  .recipe-overview {
+    max-width: var(--reading-max);
+  }
+
+  .recipe-body {
+    grid-template-columns: 320px minmax(0, 1fr);
+    align-items: start;
+    gap: var(--spacing-10);
+  }
+
+  .recipe-ingredients {
+    position: sticky;
+    /* Clears the sticky header. */
+    top: var(--spacing-4);
+    max-height: calc(100dvh - var(--spacing-8));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+.related-recipes {
+  margin-top: var(--spacing-10);
+  padding-top: var(--spacing-6);
+  border-top: 1px solid var(--border-color);
+}
+
+.related-recipes > h2 {
+  margin-bottom: var(--spacing-4);
+}
+
+.related-link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  height: 100%;
+  padding: var(--spacing-2);
+  color: var(--primary-text);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.related-link:hover {
+  color: var(--accent);
+  text-decoration: none;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+
+.related-link img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  background-color: var(--surface-sunken);
+}
+
+.related-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+
+.related-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.related-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1) var(--spacing-2);
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+.related-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  /* Enough room for a grid; the rail's scroll container is dropped so nothing
+     is hidden off the side of a wide screen. */
+  .recent-rail,
+  .related-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: var(--spacing-4);
+    overflow-x: visible;
+  }
+
+  .recent-rail > li,
+  .related-list > .related-item {
+    flex: none;
+  }
+}
+
+/* ==========================================================================
+   SHOPPING LIST
+   ========================================================================== */
+
+.shopping-list-page {
+  width: 100%;
+  max-width: var(--reading-max);
+  margin: 0 auto;
+  padding: var(--spacing-6) var(--spacing-4) 0;
+}
+
+.shopping-list-page > .section-header {
+  align-items: flex-start;
+  margin-bottom: var(--spacing-6);
+}
+
+.shopping-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.shopping-group {
+  margin-bottom: var(--spacing-6);
+  padding: var(--spacing-4) var(--spacing-5);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.shopping-group-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-2);
+  padding-bottom: var(--spacing-2);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.shopping-group-header h2 {
+  margin: 0;
+  font-size: var(--text-h3);
+  min-width: 0;
+}
+
+.shopping-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shopping-items > li {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.shopping-items > li + li {
+  border-top: 1px solid var(--border-color);
+}
+
+.shopping-items > li.is-checked .ingredient-text {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.shopping-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: var(--text-faint);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.shopping-remove:hover {
+  color: var(--danger-text);
+  background-color: var(--danger-surface);
+  border-color: var(--danger-border);
+}
+
+/* ==========================================================================
+   MISC — scroll to top, nav badge, shortcut sheet, field grid
+   ========================================================================== */
+
+/* Bottom-*left*, deliberately: `.floating-add-btn` owns bottom-right, and two
+   fixed circles in the same corner would overlap on a narrow phone. */
+.scroll-to-top {
+  position: fixed;
+  left: var(--spacing-6);
+  bottom: var(--spacing-6);
+  z-index: var(--z-floating);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  color: var(--primary-text);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  transition: background-color var(--transition), transform var(--transition);
+  animation: rise-in 240ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.scroll-to-top:hover {
+  background-color: var(--surface-hover);
+  transform: translateY(-2px);
+}
+
+/* Fade plus a short rise, per DESIGN.md §2.2. Duration is neutralised by the
+   global `prefers-reduced-motion` block in base.css. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .scroll-to-top {
+    left: var(--spacing-4);
+    bottom: var(--spacing-4);
+  }
+}
+
+.nav-link--icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-bottom: 0; /* the underline treatment reads as an artefact on an icon */
+}
+
+.nav-link--icon:hover,
+.nav-link--icon.active {
+  border-bottom-color: transparent;
+}
+
+.nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  /* White on terracotta 5.2:1 in light; near-black on the lifted orange in
+     dark. The count is also in the link's aria-label, so the bubble is not the
+     only way to know. */
+  color: var(--accent-contrast);
+  background-color: var(--accent);
+  border-radius: var(--radius-full);
+  pointer-events: none;
+}
+
+.shortcut-list {
+  margin: 0 0 var(--spacing-4);
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-2) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.shortcut-row:last-child {
+  border-bottom: 0;
+}
+
+.shortcut-row dt {
+  display: flex;
+  flex: none;
+  align-items: center;
+  min-width: 6rem;
+}
+
+.shortcut-row dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--secondary-text);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--spacing-4);
+}
+
+/* ==========================================================================
+   READING PROGRESS
+   --------------------------------------------------------------------------
+   A sticky bar on the recipe detail page carrying the title and a progress
+   indicator. Sits just under the site header, which is `--z-header`.
+   ========================================================================== */
+
+.reading-progress {
+  position: sticky;
+  top: var(--header-height, 4rem);
+  z-index: calc(var(--z-header) - 1);
+  margin-inline: calc(var(--spacing-4) * -1);
+  background-color: var(--header-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-color);
+
+  /* Collapsed until the real heading scrolls away, so the title is never
+     shown twice at once. Height rather than display, so the progress bar
+     stays measurable and the reveal can be animated. */
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-height 200ms cubic-bezier(0.2, 0, 0.2, 1),
+    opacity 200ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.reading-progress.is-visible {
+  max-height: 4rem;
+  opacity: 1;
+}
+
+.reading-progress-title {
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--primary-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reading-progress-bar {
+  height: 3px;
+  background-color: var(--accent);
+  /* Driven by a transform rather than width: it is composited, so scrolling a
+     long recipe does not trigger layout on every frame. */
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
+}
+
+/* ==========================================================================
+   TOASTS
+   --------------------------------------------------------------------------
+   react-toastify ships its own stylesheet; these overrides bring it into the
+   design language. It is imported before ours, so plain specificity wins.
+   ========================================================================== */
+
+.Toastify__toast {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: var(--card-background);
+  color: var(--primary-text);
+  border: 1px solid var(--border-color);
+}
+
+.Toastify__toast-body {
+  font-family: inherit;
+  color: inherit;
+}
+
+.Toastify__close-button {
+  color: var(--secondary-text);
+  opacity: 1;
+}
+
+.Toastify__close-button:hover {
+  color: var(--primary-text);
+}
+
+/* A 4px leading edge carries the status, alongside the icon — colour is never
+   the only signal. */
+.Toastify__toast--success { border-left: 4px solid var(--accent); }
+.Toastify__toast--error { border-left: 4px solid var(--danger-color); }
+.Toastify__toast--warning { border-left: 4px solid var(--star-color); }
+.Toastify__toast--info { border-left: 4px solid var(--border-strong); }
+
+.Toastify__progress-bar {
+  background: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reading-progress {
+    transition: none;
+  }
+}

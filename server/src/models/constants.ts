@@ -17,7 +17,14 @@ export const LIMITS = {
   bio: 500,
   imageUrl: 2_000,
   search: 100,
+  cuisine: 40,
+  /** A day. Anything longer is a data-entry mistake, not a slow braise. */
+  minutes: 1_440,
+  servings: 100,
 } as const;
+
+export const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
+export type Difficulty = (typeof DIFFICULTIES)[number];
 
 export const PAGINATION = {
   defaultLimit: 6,

@@ -1,0 +1,328 @@
+/* ==========================================================================
+   TOKENS
+   --------------------------------------------------------------------------
+   `:root` carries the light theme. Dark is applied two ways:
+
+     1. `:root[data-theme='dark']`  — the explicit choice, written by
+        ThemeContext onto <html>.
+     2. `@media (prefers-color-scheme: dark)` scoped to
+        `:root:not([data-theme='light'])` — covers the first paint before the
+        provider has run, and the "system" preference.
+
+   The two dark blocks are deliberate duplicates. Scoping the media query with
+   `:not([data-theme='light'])` is what makes `[data-theme]` win in *both*
+   directions: someone on a dark OS who picks light gets light, because that
+   attribute switches the media block off rather than merely competing with it
+   on specificity.
+
+   Contrast: every pairing below was checked against WCAG 2.1 AA — 4.5:1 for
+   body text, 3:1 for large text and for the boundary of interactive controls.
+   Ratios are noted where the choice is not obvious.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* --- Typography --------------------------------------------------- */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Type scale (DESIGN.md §2.1). One ladder, seven rungs, used everywhere —
+     the point is scale *contrast*, so nothing between the rungs. Sizes are not
+     theme-dependent and so live only here. */
+  --text-display: clamp(2rem, 5vw, 3.25rem); /* detail title, home hero */
+  --text-h1: clamp(1.75rem, 3vw, 2.25rem);   /* page titles */
+  --text-h2: 1.5rem;                          /* section headings */
+  --text-h3: 1.125rem;                        /* card titles */
+  --text-body: 1rem;                          /* prose */
+  --text-sm: 0.875rem;                        /* metadata, hints */
+  --text-xs: 0.75rem;                         /* tags, counts */
+  /* Instructions are read at arm's length from a phone propped on a counter,
+     so they get their own step above body copy. */
+  --text-instructions: 1.0625rem;
+  --leading-instructions: 1.75;
+
+  /* --- Page background ---------------------------------------------- */
+  /* The warm peach wash that is the app's signature. */
+  --gradient-start: #fcc9c7;
+  --gradient-mid1: #fdd9c5;
+  --gradient-mid2: #fee9d9;
+  --gradient-end: #fffefc;
+
+  /* --- Text ---------------------------------------------------------- */
+  --primary-text: #2d3748;   /* 11.6:1 on white, 8.2:1 on the peach top stop */
+  /* Darker than the original #718096, which only reached 4.0:1 on white and
+     3.3:1 on the peach — both short of AA for body copy. */
+  --secondary-text: #4a5568; /* 7.5:1 on white, 5.2:1 on the peach top stop */
+  /* Only ever used on the white card surface, where it clears 4.5:1. Never
+     place it directly on the gradient. */
+  --text-faint: #64748b;     /* 4.8:1 on white */
+
+  /* --- Surfaces ------------------------------------------------------ */
+  --card-background: #ffffff;
+  --surface-sunken: #f7fafc;  /* input fills, toolbars, inset panels */
+  --surface-hover: #edf2f7;
+  --header-bg: rgba(255, 255, 255, 0.72);
+  --header-border: rgba(255, 255, 255, 0.5);
+  --overlay-scrim: rgba(26, 22, 24, 0.55);
+
+  /* --- Lines --------------------------------------------------------- */
+  --border-color: #e2e8f0;  /* decorative dividers — no contrast requirement */
+  --border-strong: #7b899e; /* control boundaries: 3.6:1 on white */
+
+  /* --- Accent / focus ------------------------------------------------ */
+  /* Terracotta picks up the warmth of the background without competing with
+     the slate primary. 5.2:1 on white as text, well past the 3:1 the focus
+     ring needs against every surface it can land on. */
+  --accent: #c2410c;
+  --accent-hover: #9a3412;
+  --accent-contrast: #ffffff;
+  --focus-ring: #c2410c;
+  /* A tinted surface for "this row is selected" (command palette, featured
+     badge). It is only 1.15:1 against the white card, so it is never the sole
+     signal: the selected palette option also carries a 3px accent bar and a
+     weight change, and `aria-selected` carries it to assistive tech.
+     Primary ink on it: 10.4:1. */
+  --accent-soft: #fdece2;
+
+  /* --- Buttons ------------------------------------------------------- */
+  --button-primary-bg: #2d3748;
+  --button-primary-hover: #1a202c;
+  --button-primary-text: #ffffff;  /* 12:1 on the primary fill */
+  --button-secondary-bg: #e2e8f0;
+  --button-secondary-hover: #cbd5e0;
+  --button-secondary-text: #2d3748; /* 9.7:1 on the secondary fill */
+
+  /* --- Danger -------------------------------------------------------- */
+  --danger-color: #c53030;   /* white on it: 5.5:1 */
+  --danger-hover: #9b2c2c;
+  --danger-contrast: #ffffff;
+  --danger-text: #9b2c2c;    /* danger *text* on a light tint: 6.4:1 */
+  --danger-surface: #fff5f5;
+  --danger-border: #fc8181;
+
+  /* --- Tags ---------------------------------------------------------- */
+  --tag-bg: #edf2f7;
+  --tag-text: #2d3748;
+
+  /* --- Ratings ------------------------------------------------------- */
+  /* Gold is decorative: filled versus empty is carried by the icon shape and
+     by the adjacent text ("4.2 (17)" / the radio group's accessible value),
+     never by colour alone, so it does not owe a contrast ratio. */
+  --star-color: #d69e00;
+  --star-empty: #a0aec0;
+
+  /* --- Search highlighting -------------------------------------------- */
+  /* Not the browser default yellow, which is loud in light mode and
+     unreadable when a dark-mode UA leaves the ink light. Both values are set
+     explicitly so the pairing is ours in either theme.
+     #2d3748 on #ffdcb0 = 10.0:1. */
+  --mark-bg: #ffdcb0;
+  --mark-text: #2d3748;
+
+  /* --- Cook mode ------------------------------------------------------ */
+  /* Its own palette, deliberately not the card palette: cook mode is an opaque
+     full-viewport layer read at arm's length in a bright kitchen, so it goes
+     for maximum contrast rather than for the warm card look.
+     Ink on field: 15.9:1. Muted on field: 7.5:1. Border on field: 3.6:1. */
+  --cook-bg: #ffffff;
+  --cook-surface: #f7fafc;
+  --cook-text: #1a202c;
+  --cook-muted: #4a5568;
+  --cook-border: #7b899e;
+
+  /* --- Skeletons ----------------------------------------------------- */
+  --skeleton-base: #e8edf3;
+  --skeleton-sheen: #f6f9fc;
+
+  /* --- Shadows ------------------------------------------------------- */
+  --shadow-color: rgba(45, 55, 72, 0.06);
+  --shadow-lg-color: rgba(45, 55, 72, 0.12);
+  --shadow-sm: 0 1px 2px var(--shadow-color);
+  --shadow-md: 0 4px 6px -1px var(--shadow-color), 0 2px 4px -2px var(--shadow-color);
+  --shadow-lg: 0 10px 15px -3px var(--shadow-lg-color), 0 4px 6px -4px var(--shadow-color);
+  --shadow-xl: 0 20px 25px -5px var(--shadow-lg-color), 0 8px 10px -6px var(--shadow-color);
+
+  /* --- Spacing ------------------------------------------------------- */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+
+  /* --- Radius -------------------------------------------------------- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-full: 9999px;
+
+  /* --- Motion -------------------------------------------------------- */
+  --transition-fast: 120ms ease;
+  --transition: 200ms ease;
+
+  /* --- Layout -------------------------------------------------------- */
+  --content-max: 1200px;
+  --reading-max: 46rem;
+  --header-height: 4.5rem;
+  --z-header: 1000;
+  --z-skip-link: 1100;
+  --z-modal: 1200;
+  --z-floating: 900;
+  /* Cook mode is the top layer of the app: it must cover the modal that may
+     have opened it and the sticky header underneath. */
+  --z-cook: 1300;
+}
+
+/* --------------------------------------------------------------------------
+   DARK THEME
+   Not an inversion. The peach gradient becomes a deep charcoal-plum so the
+   warmth survives; cards sit a step above it rather than below.
+   -------------------------------------------------------------------------- */
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --gradient-start: #2b2126;
+  --gradient-mid1: #251d22;
+  --gradient-mid2: #1f191d;
+  --gradient-end: #191416;
+
+  /* Warm off-white rather than #fff — pure white on a dark field haloes.
+     12.4:1 on the card surface. */
+  --primary-text: #f2edeb;
+  --secondary-text: #b3a9ae; /* 6.3:1 on the card surface */
+  --text-faint: #9a9095;     /* 4.6:1 on the card surface */
+
+  --card-background: #302730;
+  --surface-sunken: #271f26;
+  --surface-hover: #3b303a;
+  --header-bg: rgba(37, 29, 34, 0.78);
+  --header-border: rgba(255, 255, 255, 0.08);
+  --overlay-scrim: rgba(10, 7, 9, 0.7);
+
+  --border-color: #443840;
+  --border-strong: #8a7680; /* 3.4:1 on the card surface */
+
+  /* Lifted and desaturated so it still clears 3:1 on the dark field —
+     #c2410c would only manage 2.8:1 there. */
+  --accent: #ffa766;
+  --accent-hover: #ffc196;
+  --accent-contrast: #241d21;
+  --focus-ring: #ffa766; /* 7.5:1 on the card surface */
+  /* Same job as in light: a tint, 1.2:1 against the card, never the only
+     signal. Primary ink on it: 10.2:1. */
+  --accent-soft: #46332a;
+
+  /* The primary button flips to a light fill; a slate button would vanish. */
+  --button-primary-bg: #f0e9e6;
+  --button-primary-hover: #ffffff;
+  --button-primary-text: #241d21; /* 13.8:1 on the primary fill */
+  --button-secondary-bg: #3e333a;
+  --button-secondary-hover: #4c3f47;
+  --button-secondary-text: #f2edeb; /* 10.4:1 on the secondary fill */
+
+  --danger-color: #d24245;   /* white on it: 4.6:1, and 3.2:1 against the card */
+  --danger-hover: #e15a5d;
+  --danger-contrast: #ffffff;
+  --danger-text: #ffb0b0;    /* 7.0:1 on the danger tint below */
+  --danger-surface: #3a2429;
+  --danger-border: #8e3a3d;
+
+  --tag-bg: #3b303a;
+  --tag-text: #e6dfe2;
+
+  --star-color: #ffc107;
+  --star-empty: #7d7078;
+
+  /* A dark ember rather than a light wash — a light highlight block on dark
+     prose reads as a hole. #ffe7d0 on #5c3a1c = 8.5:1. */
+  --mark-bg: #5c3a1c;
+  --mark-text: #ffe7d0;
+
+  /* Near-black warm field. Ink 16.8:1, muted 9.6:1, border 4.4:1 on it. */
+  --cook-bg: #171216;
+  --cook-surface: #241d23;
+  --cook-text: #f7f3f1;
+  --cook-muted: #c3b8bd;
+  --cook-border: #8a7680;
+
+  --skeleton-base: #3a2f38;
+  --skeleton-sheen: #4a3d47;
+
+  --shadow-color: rgba(0, 0, 0, 0.35);
+  --shadow-lg-color: rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  /* Same values as above. Excluding an explicit light choice is what lets a
+     user override a dark OS. */
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --gradient-start: #2b2126;
+    --gradient-mid1: #251d22;
+    --gradient-mid2: #1f191d;
+    --gradient-end: #191416;
+
+    --primary-text: #f2edeb;
+    --secondary-text: #b3a9ae;
+    --text-faint: #9a9095;
+
+    --card-background: #302730;
+    --surface-sunken: #271f26;
+    --surface-hover: #3b303a;
+    --header-bg: rgba(37, 29, 34, 0.78);
+    --header-border: rgba(255, 255, 255, 0.08);
+    --overlay-scrim: rgba(10, 7, 9, 0.7);
+
+    --border-color: #443840;
+    --border-strong: #8a7680;
+
+    --accent: #ffa766;
+    --accent-hover: #ffc196;
+    --accent-contrast: #241d21;
+    --focus-ring: #ffa766;
+    --accent-soft: #46332a;
+
+    --button-primary-bg: #f0e9e6;
+    --button-primary-hover: #ffffff;
+    --button-primary-text: #241d21;
+    --button-secondary-bg: #3e333a;
+    --button-secondary-hover: #4c3f47;
+    --button-secondary-text: #f2edeb;
+
+    --danger-color: #d24245;
+    --danger-hover: #e15a5d;
+    --danger-contrast: #ffffff;
+    --danger-text: #ffb0b0;
+    --danger-surface: #3a2429;
+    --danger-border: #8e3a3d;
+
+    --tag-bg: #3b303a;
+    --tag-text: #e6dfe2;
+
+    --star-color: #ffc107;
+    --star-empty: #7d7078;
+
+    --mark-bg: #5c3a1c;
+    --mark-text: #ffe7d0;
+
+    --cook-bg: #171216;
+    --cook-surface: #241d23;
+    --cook-text: #f7f3f1;
+    --cook-muted: #c3b8bd;
+    --cook-border: #8a7680;
+
+    --skeleton-base: #3a2f38;
+    --skeleton-sheen: #4a3d47;
+
+    --shadow-color: rgba(0, 0, 0, 0.35);
+    --shadow-lg-color: rgba(0, 0, 0, 0.5);
+  }
+}

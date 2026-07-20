@@ -12,7 +12,7 @@ A recipe-sharing web app in two deployables:
 
 | Part | Path | Stack | Hosting |
 |---|---|---|---|
-| Frontend | `family-recipe-book/` | React 19 + Vite 7 + React Router 7, Firebase Auth (client SDK), Tiptap rich-text, Cloudinary uploads | Vercel |
+| Frontend | `web/` | React 19 + Vite 7 + React Router 7, Firebase Auth (client SDK), Tiptap rich-text, Cloudinary uploads | Vercel |
 | API | `server/` | Express 5 + Mongoose 8, `firebase-admin` for token verification, Cloudinary signing | (Render/Railway, inferred) |
 
 Data model is two Mongoose collections: `Recipe` (title, image, overview, ingredients[], instructions HTML, tags[], embedded `ratings[]` and `comments[]`) and `Profile` (user uid, displayName, bio, profilePictureUrl, savedRecipes[]).

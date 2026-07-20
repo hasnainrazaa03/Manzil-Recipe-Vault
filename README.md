@@ -16,7 +16,7 @@ This is a two-package repository. Each deploys independently.
 
 | Path | What it is | Stack |
 |---|---|---|
-| [`family-recipe-book/`](family-recipe-book) | The web client | React 19 · TypeScript · Vite · React Router · TanStack Query · Firebase Auth · Tiptap |
+| [`web/`](web) | The web client | React 19 · TypeScript · Vite · React Router · TanStack Query · Firebase Auth · Tiptap |
 | [`server/`](server) | The API | Node 20 · TypeScript · Express 5 · Mongoose · Zod · firebase-admin |
 
 Authentication is Firebase: the client signs in and sends the resulting ID token as `Authorization: Bearer <token>`; the API verifies it with `firebase-admin` and trusts nothing else about the caller's identity.
@@ -61,7 +61,7 @@ The server validates its configuration at boot and exits with a readable message
 ### 2. The web client
 
 ```bash
-cd family-recipe-book
+cd web
 cp .env.example .env      # fill in the Firebase web config
 npm install
 npm run dev               # http://localhost:5173
@@ -101,7 +101,7 @@ Set `NODE_ENV=production`, `CORS_ORIGINS` to your real frontend origin, and supp
 
 ### Web client
 
-Deploy `family-recipe-book/` to Vercel. [`vercel.json`](family-recipe-book/vercel.json) supplies the SPA rewrite — without it, a hard load of `/recipe/:id` returns a 404 — along with long-lived caching for hashed assets and a set of baseline security headers.
+Deploy `web/` to Vercel (set the project **Root Directory** to `web` — it changed from `family-recipe-book`). [`vercel.json`](web/vercel.json) supplies the SPA rewrite — without it, a hard load of `/recipe/:id` returns a 404 — along with long-lived caching for hashed assets and a set of baseline security headers.
 
 Set `VITE_API_URL` to the deployed API's URL.
 
@@ -127,6 +127,19 @@ Recipe cards used to display the author's email address. They now show a display
 - Reads, writes, interactions, and upload-signature minting are rate limited separately.
 
 Full endpoint list: see [`server/src/routes/`](server/src/routes).
+
+---
+
+## Features
+
+See [`DESIGN.md`](DESIGN.md) for the product plan and the reasoning behind each of these.
+
+- **Cook mode** — full-screen, one step at a time, with a screen wake lock so the phone does not sleep mid-recipe.
+- **Ingredient scaling** — a servings stepper rescales every amount live, including fractions and ranges. Anything it cannot confidently parse is left untouched.
+- **Shopping list** — collect ingredients from any recipe at your chosen yield; grouped, checkable, and stored in the browser so it works offline in a shop.
+- **Command palette** — `⌘K` to search recipes or jump anywhere. `?` lists every shortcut.
+- **Discovery** — search across titles, ingredients and tags; filter by tag, cuisine, difficulty and total time; sort by rating, popularity or speed.
+- **Dark mode**, WCAG AA in both themes, full keyboard operation, and a print stylesheet that turns any recipe into a clean card.
 
 ---
 

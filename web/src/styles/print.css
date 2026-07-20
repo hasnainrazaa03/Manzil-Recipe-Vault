@@ -1,0 +1,299 @@
+/* ==========================================================================
+   PRINT
+   --------------------------------------------------------------------------
+   Printing a recipe should produce a recipe card, not a screenshot of a web
+   page. Two documents are printable on purpose — the detail page (its "Print"
+   action) and the shopping list (likewise) — and both are handled here.
+
+   The approach is subtractive: strip the app chrome, strip every affordance
+   that cannot be pressed on paper, then flatten the remaining ink to black on
+   white. Nothing below relies on a token, because tokens carry the *screen*
+   theme: a reader on dark mode who prints must still get black on white.
+   ========================================================================== */
+
+@media print {
+  @page {
+    margin: 1.5cm;
+  }
+
+  /* --- The page itself ------------------------------------------------ */
+
+  html,
+  body {
+    /* The peach gradient is `background-attachment: fixed`, which some engines
+       will happily rasterise onto every sheet. */
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt;
+  }
+
+  /* `!important` throughout this file is deliberate and is the one place it is
+     warranted: these rules must beat component declarations that are more
+     specific than a bare element selector, and there is no cascade layer
+     available to express the same intent. */
+
+  body {
+    -webkit-print-color-adjust: economy;
+    print-color-adjust: economy;
+  }
+
+  #main-content {
+    padding-bottom: 0 !important;
+  }
+
+  /* --- Chrome and controls that do not survive paper ------------------- */
+
+  header,
+  nav,
+  .skip-link,
+  .breadcrumb,
+  .view-toggle,
+  .filters,
+  .filter-chips,
+  .pagination-controls,
+  .floating-add-btn,
+  .scroll-to-top,
+  .palette-trigger,
+  .palette-overlay,
+  .modal-overlay,
+  .cook-mode,
+  .comments-section,
+  .related-recipes,
+  .rating-section,
+  .recipe-actions,
+  .card-actions,
+  .save-btn,
+  .featured,
+  .recently-viewed,
+  .recipe-hero-expand,
+  /* The photo is not part of the recipe card the print is for, it is a large
+     block of toner, and its wrapper is a <button> that is hidden below in any
+     case. Title, metadata, ingredients, method — that is the deliverable. */
+  .recipe-hero,
+  .shopping-actions,
+  .shopping-remove,
+  .shopping-group-header button,
+  .section-header button,
+  .ingredient-section > button,
+  .servings-adjusted button,
+  .results-summary,
+  .Toastify,
+  .Toastify__toast-container {
+    display: none !important;
+  }
+
+  /* --- Flatten ---------------------------------------------------------- */
+
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    /* Rounded corners only show up on paper as unwanted ink on borders. */
+    border-radius: 0 !important;
+  }
+
+  a {
+    color: #000000 !important;
+    text-decoration: none !important;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  p,
+  li,
+  span,
+  strong,
+  time,
+  output,
+  dt,
+  dd {
+    color: #000000 !important;
+  }
+
+  .recipe-detail,
+  .shopping-list-page {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    border: 0 !important;
+  }
+
+  /* --- The recipe card ------------------------------------------------- */
+
+  .recipe-detail-header h1 {
+    font-size: 22pt !important;
+    margin-bottom: 6pt;
+  }
+
+  .recipe-meta {
+    font-size: 9pt;
+  }
+
+  /* Metadata strip: keep it, as a plain divided line. */
+  .metadata-strip--detail .metadata-item {
+    border-inline-start-color: #000000 !important;
+  }
+
+  .metadata-strip--detail .metadata-label,
+  .metadata-strip--detail .metadata-value {
+    color: #000000 !important;
+  }
+
+  .metadata-strip--card {
+    display: none !important;
+  }
+
+  .recipe-body {
+    /* Two columns are a screen luxury; on A4 the ingredients belong above the
+       method, which is the order they are read in. */
+    display: block !important;
+  }
+
+  .recipe-ingredients {
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin-bottom: 12pt;
+    break-inside: avoid;
+  }
+
+  .recipe-ingredients h2,
+  .recipe-instructions h2 {
+    font-size: 13pt !important;
+    break-after: avoid;
+  }
+
+  /* The servings stepper cannot be pressed, but the chosen yield is exactly
+     what the printed amounts were scaled to, so the number stays and only the
+     buttons go. */
+  .servings-controls button {
+    display: none !important;
+  }
+
+  .servings-controls {
+    border: 0 !important;
+    padding: 0 !important;
+  }
+
+  .servings-factor {
+    color: #000000 !important;
+    background: none !important;
+    border: 1px solid #000000 !important;
+  }
+
+  .ingredient-list li,
+  .shopping-items > li {
+    /* Requirement: never split an ingredient across two sheets. */
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border-color: #999999 !important;
+  }
+
+  /* The tick box prints as an empty square — useful to tick with a pen while
+     shopping or cooking. The `:checked` fill would just waste toner. */
+  .ingredient-check {
+    min-height: 0 !important;
+    padding: 2pt 0 !important;
+    background: none !important;
+  }
+
+  .ingredient-check-box {
+    width: 10pt !important;
+    height: 10pt !important;
+    color: transparent !important;
+    background: none !important;
+    border: 1pt solid #000000 !important;
+  }
+
+  .ingredient-row.is-checked .ingredient-text,
+  .shopping-items > li.is-checked .ingredient-text {
+    opacity: 1 !important; /* dimming a strike-through only makes it illegible */
+  }
+
+  .ingredient-unscaled {
+    color: #000000 !important;
+    background: none !important;
+    border: 1px solid #000000 !important;
+  }
+
+  .instruction-content {
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+  }
+
+  .instruction-content li,
+  .instruction-content blockquote,
+  .instruction-content pre {
+    break-inside: avoid;
+    background: none !important;
+    border-color: #000000 !important;
+  }
+
+  .tags-container {
+    font-size: 9pt;
+  }
+
+  .tag,
+  .recipe-cuisine {
+    color: #000000 !important;
+    background: none !important;
+    border: 1px solid #000000 !important;
+    padding: 1pt 4pt !important;
+  }
+
+  mark {
+    color: #000000 !important;
+    background: none !important;
+    font-weight: 700;
+  }
+
+  /* --- The shopping list ------------------------------------------------ */
+
+  .shopping-list-page > .section-header {
+    display: block !important;
+    margin-bottom: 8pt;
+  }
+
+  .shopping-group {
+    background: none !important;
+    border: 0 !important;
+    border-top: 1pt solid #000000 !important;
+    margin-bottom: 10pt;
+    padding: 6pt 0 0 !important;
+    break-inside: avoid-page;
+  }
+
+  .shopping-group-header {
+    border-bottom: 0 !important;
+    margin-bottom: 4pt;
+    padding-bottom: 0 !important;
+  }
+
+  .shopping-group-header h2 {
+    font-size: 13pt !important;
+    break-after: avoid;
+  }
+
+  .shopping-items > li {
+    border-top: 0 !important;
+  }
+
+  /* --- Things that are only there to be interacted with ---------------- */
+
+  button,
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .btn-link {
+    display: none !important;
+  }
+
+  .empty-state,
+  .error-state {
+    background: none !important;
+    border: 1px solid #000000 !important;
+  }
+}

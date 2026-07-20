@@ -78,6 +78,20 @@ function buildFilter(query: ListRecipesQuery, viewerUid?: string): FilterQuery<u
     filter.tags = query.tagMode === 'all' ? { $all: query.tag } : { $in: query.tag };
   }
 
+  if (query.difficulty) filter.difficulty = query.difficulty;
+  if (query.cuisine) filter.cuisine = new RegExp(`^${escapeRegex(query.cuisine)}$`, 'i');
+
+  // A recipe with no stated time is excluded rather than assumed fast — the
+  // alternative silently recommends dishes we know nothing about. The same
+  // applies to sorting by speed: Mongo orders null before any number ascending,
+  // so without this every untimed recipe would head a "quickest first" list.
+  if (query.maxMinutes || query.sort === 'quickest') {
+    filter.totalMinutes = {
+      $ne: null,
+      ...(query.maxMinutes ? { $lte: query.maxMinutes } : {}),
+    };
+  }
+
   if (query.search) {
     if (query.sort === 'relevance') {
       // Indexed, stemmed, weighted — but whole-word only.
@@ -107,6 +121,8 @@ function buildSort(query: ListRecipesQuery): SortSpec {
       return { averageRating: -1, ratingCount: -1 };
     case 'popular':
       return { ratingCount: -1, createdAt: -1 };
+    case 'quickest':
+      return { totalMinutes: 1, createdAt: -1 };
     case 'relevance':
       return query.search ? { score: { $meta: 'textScore' }, createdAt: -1 } : { createdAt: -1 };
     case 'newest':
@@ -170,6 +186,87 @@ router.get(
     ]);
 
     res.json(tags);
+  }),
+);
+
+/** GET /api/recipes/cuisines — populated cuisines with counts, for the filter bar. */
+router.get(
+  '/cuisines',
+  readLimiter,
+  asyncHandler(async (_req, res) => {
+    const cuisines = await Recipe.aggregate<{ cuisine: string; count: number }>([
+      { $match: { cuisine: { $nin: [null, ''] } } },
+      // Grouped case-insensitively: the write path preserves whatever casing
+      // the author typed, so grouping on the raw string listed "Thai" and
+      // "thai" as two separate filters that both matched the same recipes.
+      // The first spelling encountered becomes the label.
+      {
+        $group: {
+          _id: { $toLower: '$cuisine' },
+          count: { $sum: 1 },
+          label: { $first: '$cuisine' },
+        },
+      },
+      { $sort: { count: -1, _id: 1 } },
+      { $limit: 30 },
+      { $project: { _id: 0, cuisine: '$label', count: 1 } },
+    ]);
+
+    res.json(cuisines);
+  }),
+);
+
+/**
+ * GET /api/recipes/:id/related
+ *
+ * Recipes sharing the most tags with this one. Ranked by overlap size, then by
+ * rating, so a single shared tag does not outrank a genuine match. Falls back
+ * to same-cuisine and then to well-rated recipes, so the section is never empty
+ * on a recipe that happens to have no tags.
+ */
+router.get(
+  '/:id/related',
+  readLimiter,
+  validate({ params: recipeIdParams }),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params as { id: string };
+    const LIMIT = 6;
+
+    const recipe = await Recipe.findById(id).select('tags cuisine').lean();
+    if (!recipe) throw notFound('Recipe not found');
+
+    const byTags =
+      recipe.tags.length > 0
+        ? await Recipe.aggregate([
+            { $match: { _id: { $ne: recipe._id }, tags: { $in: recipe.tags } } },
+            {
+              $addFields: {
+                overlap: { $size: { $setIntersection: ['$tags', recipe.tags] } },
+              },
+            },
+            { $sort: { overlap: -1, averageRating: -1, createdAt: -1 } },
+            { $limit: LIMIT },
+            { $project: { overlap: 0, ratings: 0, comments: 0, authorEmail: 0, instructions: 0 } },
+          ])
+        : [];
+
+    let results = byTags;
+
+    if (results.length < LIMIT) {
+      const seen = new Set(results.map((item) => String(item._id)));
+      const filler = await Recipe.find({
+        _id: { $ne: recipe._id, $nin: [...seen] },
+        ...(recipe.cuisine ? { cuisine: recipe.cuisine } : {}),
+      })
+        .select(RECIPE_LIST_PROJECTION)
+        .sort({ averageRating: -1, ratingCount: -1, createdAt: -1 })
+        .limit(LIMIT - results.length)
+        .lean();
+
+      results = [...results, ...filler];
+    }
+
+    res.json(results.map((item) => publicRecipe(item as Record<string, unknown>)));
   }),
 );
 

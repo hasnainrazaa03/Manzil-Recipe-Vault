@@ -1,5 +1,5 @@
 import mongoose, { Schema, type InferSchemaType, type HydratedDocument } from 'mongoose';
-import { LIMITS } from './constants.js';
+import { DIFFICULTIES, LIMITS } from './constants.js';
 
 const commentSchema = new Schema(
   {
@@ -52,6 +52,24 @@ const recipeSchema = new Schema(
     /** Denormalised display name, so rendering a card needs no Profile lookup. */
     authorName: { type: String, default: '', maxlength: LIMITS.displayName },
     tags: { type: [String], default: [] },
+
+    /**
+     * Cooking metadata. All optional: a recipe that does not state its timing
+     * is a worse recipe, not an invalid one, and requiring these would
+     * invalidate every row written before they existed with no correct default.
+     * `null` means "not stated" and is distinct from zero.
+     */
+    servings: { type: Number, default: null, min: 1, max: LIMITS.servings },
+    prepMinutes: { type: Number, default: null, min: 0, max: LIMITS.minutes },
+    cookMinutes: { type: Number, default: null, min: 0, max: LIMITS.minutes },
+    difficulty: { type: String, enum: [...DIFFICULTIES, null], default: null },
+    cuisine: { type: String, default: '', maxlength: LIMITS.cuisine, trim: true },
+    /**
+     * Derived from prep + cook and stored so that "under 30 minutes" can be an
+     * indexed query rather than a computed one. Maintained by the hook below;
+     * never accepted from a client.
+     */
+    totalMinutes: { type: Number, default: null, min: 0 },
     ratings: { type: [ratingSchema], default: [] },
     averageRating: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0, min: 0 },
@@ -60,6 +78,19 @@ const recipeSchema = new Schema(
   },
   { timestamps: true },
 );
+
+/**
+ * Keep `totalMinutes` in step with its inputs. Null when neither is stated, so
+ * "no time given" stays distinguishable from "takes zero minutes" and such
+ * recipes sort last rather than first.
+ */
+recipeSchema.pre('validate', function syncTotalMinutes(next) {
+  const prep = this.prepMinutes;
+  const cook = this.cookMinutes;
+  this.totalMinutes =
+    prep == null && cook == null ? null : (prep ?? 0) + (cook ?? 0);
+  next();
+});
 
 // --- Indexes -----------------------------------------------------------------
 // Every list query in the app sorts by one of these while optionally filtering
@@ -70,6 +101,10 @@ recipeSchema.index({ author: 1, createdAt: -1 });
 recipeSchema.index({ tags: 1, createdAt: -1 });
 recipeSchema.index({ averageRating: -1, ratingCount: -1 });
 recipeSchema.index({ ratingCount: -1, createdAt: -1 });
+recipeSchema.index({ cuisine: 1, createdAt: -1 });
+recipeSchema.index({ difficulty: 1, createdAt: -1 });
+// Supports "quick meals" — sorting and filtering by total time.
+recipeSchema.index({ totalMinutes: 1, createdAt: -1 });
 
 // Full-text search across the fields a person would actually search by. Weights
 // bias matches in the title above a passing mention in the instructions.
@@ -89,7 +124,7 @@ recipeSchema.index(
  * was the very thing hardening the profile route was meant to prevent.
  */
 export const RECIPE_LIST_PROJECTION =
-  'title image overview author authorName tags averageRating ratingCount commentCount createdAt updatedAt';
+  'title image overview author authorName tags averageRating ratingCount commentCount createdAt updatedAt servings prepMinutes cookMinutes totalMinutes difficulty cuisine';
 
 export type RecipeDoc = HydratedDocument<InferSchemaType<typeof recipeSchema>>;
 

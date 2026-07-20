@@ -94,6 +94,11 @@ interface RecipeOverrides {
   authorEmail?: string;
   authorName?: string;
   tags?: string[];
+  servings?: number | null;
+  prepMinutes?: number | null;
+  cookMinutes?: number | null;
+  difficulty?: 'easy' | 'medium' | 'hard' | null;
+  cuisine?: string;
   ratings?: { userId: string; score: number }[];
   averageRating?: number;
   ratingCount?: number;
