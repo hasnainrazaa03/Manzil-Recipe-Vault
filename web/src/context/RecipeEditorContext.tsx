@@ -28,9 +28,43 @@ const RecipeEditorContext = createContext<RecipeEditorContextValue | null>(null)
  * and one that most visitors never need. Loading it when the dialog opens keeps
  * it out of the initial bundle entirely.
  */
-const RecipeForm = lazy(() =>
-  import('../components/RecipeForm').then((module) => ({ default: module.RecipeForm })),
-);
+const importRecipeForm = () => import('../components/RecipeForm');
+
+const RecipeForm = lazy(() => importRecipeForm().then((module) => ({ default: module.RecipeForm })));
+
+/**
+ * Starts that download before it is needed.
+ *
+ * Splitting the editor out keeps 119 kB (gzipped) of Tiptap and ProseMirror out
+ * of the initial bundle, which is right — but it moved the wait rather than
+ * removing it. Pressing "Add recipe" opened a dialog containing a spinner and
+ * then sat there while the chunk downloaded and parsed: the app felt slowest at
+ * the exact moment someone had decided to do something.
+ *
+ * Fetching it during idle time costs nothing a visitor notices — the browser
+ * only calls back once it has finished the work that matters — and the dialog
+ * then opens from cache. `import()` is memoised, so calling this any number of
+ * times results in one request, and the lazy component below shares the result.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function prefetchRecipeForm(): void {
+  if (typeof window === 'undefined') return;
+
+  const start = () => void importRecipeForm().catch(() => {
+    // A failed prefetch is not an error anyone should see. The real import runs
+    // again when the dialog opens and reports properly if it fails then.
+  });
+
+  // Tested by type, not with `in`: the DOM lib declares requestIdleCallback, so
+  // `'requestIdleCallback' in window` narrows the negative branch to `never` and
+  // the Safari fallback below stops compiling.
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(start, { timeout: 4000 });
+  } else {
+    // Safari only shipped it in 18.2; a timeout keeps it off the critical path.
+    window.setTimeout(start, 2000);
+  }
+}
 
 /**
  * Owns the create/edit dialog and the delete confirmation so that any page can

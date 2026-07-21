@@ -375,3 +375,38 @@ method, 3 for consent on the review screen.
 - **The 2% tolerance is a judgement, not a fact.** Tighter and every honest
   imperial conversion is flagged (8 oz is 226.8 g and every cookbook writes
   225); looser and 200 g passes as 250 g. Both directions are tested.
+
+---
+
+## 9. Perceived speed, second look (2026-07-20)
+
+Reported as "a lot of slowness in the app with the modals and everything".
+
+### Fixed
+
+| # | Sev | Finding |
+|---|---|---|
+| P1 | **S2** | **Opening the recipe editor downloaded 119 kB (gzipped) before it could render.** Tiptap and ProseMirror are lazily split out, which is right — but that moved the wait rather than removing it, and moved it to the worst possible moment: the dialog opened showing a spinner and sat there while the chunk arrived and parsed. The app felt slowest exactly when someone had decided to do something. The chunk is now prefetched during idle time once a visitor signs in, with pointer-enter and focus on the button as a second chance. `import()` is memoised, so the dialog shares the result and nothing is fetched twice. |
+
+### Suspected, not confirmed
+
+- **Stacked `backdrop-filter`.** The site header runs `blur(10px) saturate(140%)`
+  and the recipe page's reading-progress bar runs another `blur(10px)` directly
+  beneath it, so the second blurs output the first already blurred. Two modal
+  overlays add `blur(2px)` more. On paper this is the most expensive thing in
+  the stylesheet, because the compositor re-blurs the backdrop every frame while
+  scrolling.
+
+  **It was measured and the measurement failed.** A scroll harness in headless
+  Chromium reported mean 8.33 ms with the filters and 8.31 ms without — a 0.02 ms
+  difference across ~240 frames, which is not a small effect, it is no effect.
+  Headless Chromium without a GPU almost certainly skips or cheaply emulates
+  `backdrop-filter`, so the result says nothing about a real phone. Recorded as
+  unresolved rather than dismissed: the next step is a profile on actual
+  hardware, not another headless run.
+
+### Still true, and not a code problem
+
+The free Render instance sleeps after 15 minutes and takes the better part of a
+minute to answer the first request afterwards. No change in this repo fixes
+that.
